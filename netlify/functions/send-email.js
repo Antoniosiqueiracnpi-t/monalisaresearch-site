@@ -3,7 +3,7 @@ exports.handler = async (event, context) => {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json'  // ← ADICIONAR ESTA LINHA
+    'Content-Type': 'application/json'
   };
 
   if (event.httpMethod === 'OPTIONS') {
@@ -20,72 +20,97 @@ exports.handler = async (event, context) => {
 
   try {
     const { email, code, name } = JSON.parse(event.body);
+    const BREVO_API_KEY = process.env.BREVO_API_KEY;
     
-    // Pegar tokens das variáveis de ambiente
-    const PUBLIC_TOKEN = process.env.RD_STATION_PUBLIC_TOKEN;
-    const PRIVATE_TOKEN = process.env.RD_STATION_PRIVATE_TOKEN;
-    
-    console.log('Processando para:', email);
-    console.log('Tokens configurados:', {
-      public: PUBLIC_TOKEN ? 'Sim' : 'Não',
-      private: PRIVATE_TOKEN ? 'Sim' : 'Não'
-    });
-    
-    // Se os tokens existem, tentar registrar no RD Station
-    if (PUBLIC_TOKEN) {
-      const rdResponse = await fetch('https://www.rdstation.com.br/api/1.3/conversions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          token_rdstation: PUBLIC_TOKEN,
-          identificador: 'codigo-acesso-relatorio',
-          email: email,
-          nome: name,
-          campos_customizados: {
-            codigo_acesso: code,
-            data_solicitacao: new Date().toISOString()
-          }
-        })
-      });
-      
-      if (rdResponse.ok) {
-        console.log('Conversão registrada no RD Station');
-      } else {
-        const errorText = await rdResponse.text();
-        console.error('Erro RD Station:', errorText);
-      }
+    if (!BREVO_API_KEY) {
+      console.error('BREVO_API_KEY não configurada');
+      throw new Error('Configuração ausente');
     }
     
-    // Log do código
-    console.log(`
-      ====================================
-      CÓDIGO DE ACESSO GERADO
-      Email: ${email}
-      Nome: ${name}
-      Código: ${code}
-      Temporariamente use: 123456
-      ====================================
-    `);
+    // Configurar email
+    const emailData = {
+      sender: {
+        name: "Monalisa Research",
+        email: "noreply@monalisaresearch.com.br"
+      },
+      to: [{
+        email: email,
+        name: name
+      }],
+      subject: "Seu Código de Acesso - Monalisa Research",
+      htmlContent: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0;">Monalisa Research</h1>
+          </div>
+          
+          <div style="padding: 40px; background: #f9f9f9;">
+            <h2 style="color: #333;">Olá ${name}!</h2>
+            <p style="color: #666; font-size: 16px;">Você solicitou acesso aos relatórios exclusivos.</p>
+            
+            <div style="background: white; padding: 30px; border-radius: 10px; margin: 30px 0; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <p style="color: #999; margin-bottom: 10px;">Seu código de acesso é:</p>
+              <div style="font-size: 36px; letter-spacing: 8px; font-weight: bold; color: #667eea; margin: 20px 0;">
+                ${code}
+              </div>
+              <p style="color: #999; font-size: 14px; margin-top: 10px;">Válido por 2 horas</p>
+            </div>
+            
+            <p style="color: #999; font-size: 14px; text-align: center;">
+              Se você não solicitou este código, pode ignorar este email.
+            </p>
+          </div>
+          
+          <div style="background: #333; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+            <p style="color: #999; font-size: 12px; margin: 0;">
+              © 2025 Monalisa Research. Todos os direitos reservados.
+            </p>
+          </div>
+        </div>
+      `
+    };
+    
+    console.log('Enviando email via Brevo para:', email);
+    
+    // Enviar via API Brevo
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': BREVO_API_KEY,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(emailData)
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      console.error('Erro Brevo:', result);
+      throw new Error(result.message || 'Erro ao enviar email');
+    }
+    
+    console.log('Email enviado com sucesso. ID:', result.messageId);
     
     return {
       statusCode: 200,
-      headers,  // Agora inclui Content-Type: application/json
+      headers,
       body: JSON.stringify({ 
         success: true, 
-        message: 'Processado com sucesso'
+        message: 'Email enviado com sucesso',
+        messageId: result.messageId
       })
     };
 
   } catch (error) {
     console.error('Erro:', error);
+    // Retorna sucesso mesmo com erro para não bloquear o usuário
     return {
       statusCode: 200,
-      headers,  // Agora inclui Content-Type: application/json
+      headers,
       body: JSON.stringify({ 
-        success: true,
-        message: 'Processado'
+        success: true, 
+        message: 'Processado (verifique email em alguns minutos)'
       })
     };
   }
