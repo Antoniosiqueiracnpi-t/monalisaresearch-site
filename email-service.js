@@ -1,14 +1,14 @@
 // email-service.js
-class RDStationEmailService {
+class BrevoEmailService {
     constructor() {
-        this.templateId = '20904014';
-        this.functionEndpoint = '/.netlify/functions/send-email';
+        this.codeEndpoint = '/.netlify/functions/send-email';
+        this.reportEndpoint = '/.netlify/functions/send-report-notification';
         this.retryAttempts = 3;
         this.retryDelay = 1000; // 1 segundo
     }
 
     /**
-     * Envia código de acesso por email via Netlify Function
+     * Envia código de acesso por email via Brevo
      * @param {string} email - Email do destinatário
      * @param {string} code - Código de acesso de 6 dígitos
      * @param {string} userName - Nome do usuário
@@ -16,14 +16,14 @@ class RDStationEmailService {
      */
     async sendAccessCode(email, code, userName) {
         try {
-            console.log('Enviando código via Netlify Function para:', email);
+            console.log('Enviando código via Brevo para:', email);
             
             // Validação de entrada
             if (!this.isValidEmail(email)) {
                 return {
                     success: false,
                     error: 'Email inválido',
-                    provider: 'netlify-rdstation'
+                    provider: 'brevo'
                 };
             }
 
@@ -31,7 +31,7 @@ class RDStationEmailService {
                 return {
                     success: false,
                     error: 'Código deve ter 6 dígitos',
-                    provider: 'netlify-rdstation'
+                    provider: 'brevo'
                 };
             }
 
@@ -39,11 +39,59 @@ class RDStationEmailService {
             let lastError = null;
             for (let attempt = 1; attempt <= this.retryAttempts; attempt++) {
                 try {
-                    const result = await this.makeRequest(email, code, userName);
-                    if (result.success) {
-                        return result;
+                    const response = await fetch(this.codeEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: email,
+                            code: code,
+                            name: userName,
+                            timestamp: new Date().toISOString()
+                        })
+                    });
+
+                    if (response.status === 404) {
+                        return {
+                            success: false,
+                            error: 'Serviço de email não configurado. Contate o suporte.',
+                            provider: 'brevo',
+                            status: 404
+                        };
                     }
-                    lastError = result.error;
+
+                    if (!response.ok) {
+                        let errorMessage = `Erro HTTP ${response.status}`;
+                        try {
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || errorMessage;
+                        } catch (e) {
+                            console.error('Erro ao processar resposta:', e);
+                        }
+                        
+                        lastError = errorMessage;
+                        if (attempt < this.retryAttempts) {
+                            await this.delay(this.retryDelay * attempt);
+                            continue;
+                        }
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        console.log('Email enviado com sucesso via Brevo');
+                        return {
+                            success: true,
+                            provider: 'brevo',
+                            messageId: result.messageId,
+                            message: 'Código enviado com sucesso'
+                        };
+                    } else {
+                        lastError = result.error || 'Erro desconhecido';
+                    }
+                    
                 } catch (error) {
                     lastError = error.message;
                     console.error(`Tentativa ${attempt} falhou:`, error);
@@ -58,7 +106,7 @@ class RDStationEmailService {
             return {
                 success: false,
                 error: lastError || 'Erro ao enviar código após múltiplas tentativas',
-                provider: 'netlify-rdstation'
+                provider: 'brevo'
             };
             
         } catch (error) {
@@ -66,128 +114,122 @@ class RDStationEmailService {
             return {
                 success: false,
                 error: error.message,
-                provider: 'netlify-rdstation'
+                provider: 'brevo'
             };
         }
     }
 
     /**
-     * Faz a requisição para a Netlify Function
+     * Envia notificação de novo relatório
+     * @param {string} email - Email do destinatário
+     * @param {string} userName - Nome do usuário
+     * @param {Object} reportInfo - Informações do relatório
+     * @returns {Object} Resultado do envio
      */
-    async makeRequest(email, code, userName) {
-        const response = await fetch(this.functionEndpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                email: email,
-                code: code,
-                name: userName,
-                timestamp: new Date().toISOString()
-            })
-        });
-
-        // Verificar se é 404 - função não existe
-        if (response.status === 404) {
-            console.error('Netlify Function não encontrada. Verifique se está em netlify/functions/send-email.js');
-            return {
-                success: false,
-                error: 'Função de envio não encontrada. Contate o suporte.',
-                provider: 'netlify-rdstation',
-                status: 404
-            };
-        }
-
-        // Verificar se é 405 - método não permitido
-        if (response.status === 405) {
-            console.error('Método não permitido. A função só aceita POST.');
-            return {
-                success: false,
-                error: 'Erro de configuração. Contate o suporte.',
-                provider: 'netlify-rdstation',
-                status: 405
-            };
-        }
-
-        // Verificar outros erros HTTP
-        if (!response.ok) {
-            let errorMessage = `Erro HTTP ${response.status}`;
-            try {
-                const errorText = await response.text();
-                if (errorText) {
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.error || errorMessage;
-                }
-            } catch (e) {
-                console.error('Não foi possível processar resposta de erro:', e);
+    async sendReportNotification(email, userName, reportInfo) {
+        try {
+            console.log('Enviando notificação de relatório via Brevo para:', email);
+            
+            if (!this.isValidEmail(email)) {
+                return {
+                    success: false,
+                    error: 'Email inválido',
+                    provider: 'brevo'
+                };
             }
+
+            const response = await fetch(this.reportEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    name: userName,
+                    report: reportInfo,
+                    timestamp: new Date().toISOString()
+                })
+            });
+
+            if (response.status === 404) {
+                return {
+                    success: false,
+                    error: 'Serviço de notificação não configurado',
+                    provider: 'brevo'
+                };
+            }
+
+            const result = await response.json();
             
             return {
-                success: false,
-                error: errorMessage,
-                provider: 'netlify-rdstation',
-                status: response.status
+                success: result.success,
+                provider: 'brevo',
+                messageId: result.messageId,
+                message: result.success ? 'Notificação enviada com sucesso' : result.error
             };
-        }
-
-        // Verificar se a resposta é JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const textResponse = await response.text();
-            console.error('Resposta não é JSON:', textResponse);
+            
+        } catch (error) {
+            console.error('Erro ao enviar notificação:', error);
             return {
                 success: false,
-                error: 'Resposta inválida do servidor',
-                provider: 'netlify-rdstation'
-            };
-        }
-
-        // Processar resposta de sucesso
-        const result = await response.json();
-        
-        if (result.success) {
-            console.log('Email enviado com sucesso via Netlify Function');
-            return {
-                success: true,
-                provider: 'netlify-rdstation',
-                result: result,
-                message: result.message || 'Código enviado com sucesso'
-            };
-        } else {
-            console.error('Erro no resultado:', result);
-            return {
-                success: false,
-                error: result.error || 'Erro desconhecido',
-                provider: 'netlify-rdstation'
+                error: error.message,
+                provider: 'brevo'
             };
         }
     }
 
     /**
-     * Enviar notificação de novo relatório (funcionalidade futura)
+     * Envia notificações em lote para múltiplos assinantes
+     * @param {Array} subscribers - Lista de assinantes
+     * @param {Object} reportInfo - Informações do relatório
+     * @returns {Object} Resultado consolidado
      */
-    async sendNewReportNotification(subscribers, reportInfo) {
-        const results = [];
-        
+    async sendBatchNotifications(subscribers, reportInfo) {
+        const results = {
+            total: subscribers.length,
+            successful: 0,
+            failed: 0,
+            errors: []
+        };
+
         for (const subscriber of subscribers) {
             if (!this.isValidEmail(subscriber.email)) {
-                results.push({
+                results.failed++;
+                results.errors.push({
                     subscriber: subscriber.nome,
-                    success: false,
                     error: 'Email inválido'
                 });
                 continue;
             }
 
-            // Por enquanto, apenas registra
-            results.push({
-                subscriber: subscriber.nome,
-                email: subscriber.email,
-                success: true,
-                note: 'Funcionalidade de notificação será implementada futuramente'
-            });
+            try {
+                const result = await this.sendReportNotification(
+                    subscriber.email,
+                    subscriber.nome,
+                    reportInfo
+                );
+
+                if (result.success) {
+                    results.successful++;
+                } else {
+                    results.failed++;
+                    results.errors.push({
+                        subscriber: subscriber.nome,
+                        error: result.error
+                    });
+                }
+
+                // Delay entre envios para não sobrecarregar
+                await this.delay(500);
+                
+            } catch (error) {
+                results.failed++;
+                results.errors.push({
+                    subscriber: subscriber.nome,
+                    error: error.message
+                });
+            }
         }
 
         return results;
@@ -209,14 +251,14 @@ class RDStationEmailService {
     }
 
     /**
-     * Testa a configuração da função
+     * Testa a configuração do serviço
      */
     async testConfiguration() {
         try {
-            console.log('Testando configuração da Netlify Function...');
+            console.log('Testando configuração Brevo...');
             
-            // Fazer uma chamada de teste
-            const testResult = await fetch(this.functionEndpoint, {
+            // Teste de conectividade com a função de código
+            const codeTest = await fetch(this.codeEndpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -229,69 +271,49 @@ class RDStationEmailService {
                 })
             });
             
-            if (testResult.status === 404) {
-                return {
-                    success: false,
-                    message: 'Netlify Function não encontrada. Verifique se está deployada.',
-                    templateId: this.templateId,
-                    endpoint: this.functionEndpoint
-                };
-            }
+            const codeStatus = codeTest.status === 404 ? 'não encontrada' : 'disponível';
             
-            if (testResult.status === 405) {
-                return {
-                    success: false,
-                    message: 'Função configurada mas rejeitando método POST.',
-                    templateId: this.templateId,
-                    endpoint: this.functionEndpoint
-                };
-            }
+            // Teste de conectividade com a função de notificação
+            const reportTest = await fetch(this.reportEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: 'teste@monalisaresearch.com.br',
+                    name: 'Teste Sistema',
+                    report: { type: 'test', title: 'Test' },
+                    test: true
+                })
+            });
             
-            if (!testResult.ok) {
-                return {
-                    success: false,
-                    message: `Erro HTTP ${testResult.status} na configuração`,
-                    templateId: this.templateId,
-                    endpoint: this.functionEndpoint
-                };
-            }
-            
-            const data = await testResult.json();
+            const reportStatus = reportTest.status === 404 ? 'não encontrada' : 'disponível';
             
             return {
-                success: true,
-                message: 'Configuração Netlify Function OK',
-                templateId: this.templateId,
-                endpoint: this.functionEndpoint,
-                testResponse: data
+                success: codeTest.status !== 404 && reportTest.status !== 404,
+                message: 'Teste de configuração Brevo',
+                endpoints: {
+                    sendCode: {
+                        endpoint: this.codeEndpoint,
+                        status: codeStatus
+                    },
+                    sendReport: {
+                        endpoint: this.reportEndpoint,
+                        status: reportStatus
+                    }
+                }
             };
             
         } catch (error) {
             return {
                 success: false,
                 message: `Erro na configuração: ${error.message}`,
-                templateId: this.templateId,
-                endpoint: this.functionEndpoint
+                endpoints: {
+                    sendCode: this.codeEndpoint,
+                    sendReport: this.reportEndpoint
+                }
             };
         }
-    }
-
-    /**
-     * Formatar mensagem de email (para debug)
-     */
-    formatEmailMessage(userName, code) {
-        return `
-            Olá ${userName},
-            
-            Seu código de acesso para visualizar os relatórios exclusivos da Monalisa Research é:
-            
-            ${code}
-            
-            Este código é válido por 30 minutos.
-            
-            Atenciosamente,
-            Equipe Monalisa Research
-        `;
     }
 
     /**
@@ -299,9 +321,11 @@ class RDStationEmailService {
      */
     getIntegrationStatus() {
         return {
-            provider: 'RD Station via Netlify Functions',
-            endpoint: this.functionEndpoint,
-            templateId: this.templateId,
+            provider: 'Brevo (SendinBlue)',
+            endpoints: {
+                sendCode: this.codeEndpoint,
+                sendReport: this.reportEndpoint
+            },
             configured: true,
             retryEnabled: true,
             maxRetries: this.retryAttempts
@@ -309,7 +333,7 @@ class RDStationEmailService {
     }
 }
 
-// Exportar para uso global se necessário
+// Exportar para uso global
 if (typeof window !== 'undefined') {
-    window.RDStationEmailService = RDStationEmailService;
+    window.BrevoEmailService = BrevoEmailService;
 }
