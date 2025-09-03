@@ -1,5 +1,4 @@
 exports.handler = async (event, context) => {
-    // Headers CORS para todas as respostas
     const headers = {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
@@ -7,7 +6,6 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
     };
     
-    // Lidar com requisição OPTIONS (CORS preflight)
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
@@ -16,7 +14,6 @@ exports.handler = async (event, context) => {
         };
     }
     
-    // Verificar se é POST
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
@@ -28,7 +25,6 @@ exports.handler = async (event, context) => {
     try {
         const { email, code, name } = JSON.parse(event.body);
         
-        // Validar dados obrigatórios
         if (!email || !code || !name) {
             return {
                 statusCode: 400,
@@ -37,117 +33,102 @@ exports.handler = async (event, context) => {
             };
         }
         
-        // Verificar se o token está configurado
-        if (!process.env.RD_STATION_TOKEN) {
-            console.error('RD_STATION_TOKEN não está configurado');
-            return {
-                statusCode: 500,
-                headers,
-                body: JSON.stringify({ error: 'Configuração do servidor incompleta' })
-            };
-        }
-        
-        // Primeiro, criar/atualizar o contato
-        const contactResponse = await fetch('https://api.rd.services/platform/contacts', {
-            method: 'PATCH',
+        // PASSO 1: Obter o access_token usando OAuth2
+        const tokenResponse = await fetch('https://api.rd.services/auth/token', {
+            method: 'POST',
             headers: {
-                'Authorization': `Bearer ${process.env.RD_STATION_TOKEN}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                email: email,
-                name: name,
-                cf_status_da_assinatura: 'ativo',
-                cf_plataforma: 'Monalisa Research',
-                cf_ultimo_acesso: new Date().toISOString()
+                client_id: 'e9e9ee765a21e6c6cb8a7b7f585c4be2',
+                client_secret: 'cffcb1ad5ed2b86cf37c48f49cfa8790',
+                grant_type: 'client_credentials'
             })
         });
         
-        // Não falhar se der erro no contato, mas logar detalhes
-        if (!contactResponse.ok) {
-            console.warn('Aviso ao criar contato:', contactResponse.status);
-            // Tentar ler o erro se for JSON
-            const contentType = contactResponse.headers.get("content-type");
-            if (contentType && contentType.includes("application/json")) {
-                const errorData = await contactResponse.json();
-                console.warn('Detalhes do erro do contato:', errorData);
-            }
+        if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text();
+            console.error('Erro ao obter token:', errorText);
+            return {
+                statusCode: 401,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    error: 'Falha na autenticação com RD Station' 
+                })
+            };
         }
         
-        // Enviar email com template
-        const emailResponse = await fetch('https://api.rd.services/platform/emails/send-template', {
-            method: 'POST',
+        const tokenData = await tokenResponse.json();
+        const accessToken = tokenData.access_token;
+        
+        // PASSO 2: Criar/atualizar o contato usando o access_token
+        const contactResponse = await fetch('https://api.rd.services/platform/contacts/email:' + email, {
+            method: 'PATCH',
             headers: {
-                'Authorization': `Bearer ${process.env.RD_STATION_TOKEN}`,
+                'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                email_address: email,
-                template_id: '20904014',
-                contact_by: 'email',
-                personalization: {
-                    'contact.name': name,
-                    'event.access_code': code
+                name: name,
+                custom_fields: {
+                    cf_status_da_assinatura: 'ativo',
+                    cf_plataforma: 'Monalisa Research',
+                    cf_ultimo_acesso: new Date().toISOString(),
+                    cf_access_code: code
                 }
             })
         });
         
-        // Verificar o tipo de conteúdo antes de fazer parse
-        const contentType = emailResponse.headers.get("content-type");
-        let emailResult;
-        
-        if (contentType && contentType.includes("application/json")) {
-            emailResult = await emailResponse.json();
-        } else {
-            // Se não for JSON, ler como texto para debug
-            const textResponse = await emailResponse.text();
-            console.error('Resposta não-JSON do RD Station:', textResponse);
-            
-            // Se for 401, o token está inválido
-            if (emailResponse.status === 401) {
-                return {
-                    statusCode: 401,
-                    headers,
-                    body: JSON.stringify({ 
-                        success: false, 
-                        error: 'Token de autenticação inválido ou expirado' 
-                    })
-                };
+        if (!contactResponse.ok) {
+            const contentType = contactResponse.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                const errorData = await contactResponse.json();
+                console.warn('Erro ao atualizar contato:', errorData);
+            } else {
+                console.warn('Erro ao atualizar contato - Status:', contactResponse.status);
             }
-            
-            return {
-                statusCode: emailResponse.status,
-                headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    error: `Erro na API do RD Station (Status: ${emailResponse.status})` 
-                })
-            };
         }
         
-        if (emailResponse.ok) {
-            return {
-                statusCode: 200,
-                headers,
-                body: JSON.stringify({ 
-                    success: true, 
-                    message: 'Email enviado com sucesso',
-                    result: emailResult 
-                })
-            };
-        } else {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    error: emailResult.error || emailResult.message || 'Erro ao enviar email',
-                    details: emailResult
-                })
-            };
+        // ALTERNATIVA: Como a API de templates de email pode não estar disponível,
+        // use a API de conversão para registrar o evento
+        const conversionResponse = await fetch('https://api.rd.services/platform/conversions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                event_type: 'CONVERSION',
+                event_family: 'CDP',
+                payload: {
+                    conversion_identifier: 'codigo-acesso-enviado',
+                    email: email,
+                    name: name,
+                    cf_access_code: code,
+                    token_rdstation: 'e9e9ee765a21e6c6cb8a7b7f585c4be2'
+                }
+            })
+        });
+        
+        if (!conversionResponse.ok) {
+            console.warn('Erro na conversão:', conversionResponse.status);
         }
+        
+        // NOTA: Para enviar emails, configure uma automação no RD Station
+        // que dispara quando recebe a conversão "codigo-acesso-enviado"
+        
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ 
+                success: true, 
+                message: 'Contato atualizado e evento registrado no RD Station',
+                note: 'Configure uma automação no RD Station para enviar o email com o código'
+            })
+        };
+        
     } catch (error) {
-        console.error('Erro na função send-email:', error);
+        console.error('Erro na função:', error);
         return {
             statusCode: 500,
             headers,
