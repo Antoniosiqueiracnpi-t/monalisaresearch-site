@@ -1,8 +1,26 @@
 exports.handler = async (event, context) => {
+    // Headers CORS para todas as respostas
+    const headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+    };
+
+    // Lidar com requisição OPTIONS (CORS preflight)
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ message: 'CORS OK' })
+        };
+    }
+
     // Verificar se é POST
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
+            headers,
             body: JSON.stringify({ error: 'Method not allowed' })
         };
     }
@@ -14,6 +32,7 @@ exports.handler = async (event, context) => {
         if (!email || !code || !name) {
             return {
                 statusCode: 400,
+                headers,
                 body: JSON.stringify({ error: 'Email, code e name são obrigatórios' })
             };
         }
@@ -62,12 +81,7 @@ exports.handler = async (event, context) => {
         if (emailResponse.ok) {
             return {
                 statusCode: 200,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type',
-                    'Access-Control-Allow-Methods': 'POST'
-                },
+                headers,
                 body: JSON.stringify({ 
                     success: true, 
                     message: 'Email enviado com sucesso',
@@ -77,10 +91,7 @@ exports.handler = async (event, context) => {
         } else {
             return {
                 statusCode: 400,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                },
+                headers,
                 body: JSON.stringify({ 
                     success: false, 
                     error: emailResult.error || 'Erro ao enviar email' 
@@ -92,10 +103,7 @@ exports.handler = async (event, context) => {
         console.error('Erro na função send-email:', error);
         return {
             statusCode: 500,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
+            headers,
             body: JSON.stringify({ 
                 success: false, 
                 error: 'Erro interno do servidor' 
