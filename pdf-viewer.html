@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador Seguro - Monalisa Research</title>
+    
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #1a1a1a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            
+            /* Desabilitar seleção */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            
+            /* Desabilitar arrastar */
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
+        }
+        
+        /* Desabilitar impressão */
+        @media print {
+            body { display: none !important; }
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #333;
+        }
+        
+        .logo {
+            height: 40px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            background: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            background: #357ABD;
+        }
+        
+        .btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        .close-btn {
+            background: #E74C3C;
+        }
+        
+        .close-btn:hover {
+            background: #C0392B;
+        }
+        
+        .pdf-container {
+            height: calc(100vh - 70px);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .page-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+        
+        canvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            pointer-events: none;
+        }
+        
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 60px;
+            color: rgba(255, 255, 255, 0.05);
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 1;
+            white-space: nowrap;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #4A90E2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            margin-top: 10px;
+        }
+        
+        .loading-progress {
+            font-size: 14px;
+            color: #4A90E2;
+            margin-top: 10px;
+        }
+        
+        .page-info {
+            color: white;
+            font-size: 14px;
+        }
+        
+        /* Overlay de proteção */
+        .protection-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        
+        .error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1000;
+        }
+        
+        /* Desabilitar menu de contexto */
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Overlay de proteção -->
+    <div class="protection-overlay"></div>
+    
+    <!-- Header -->
+    <div class="header">
+        <img src="https://i.postimg.cc/ZYf8MfJf/Logo-1-Branco.png" alt="Logo" class="logo">
+        <div class="controls">
+            <span class="page-info">
+                Página <span id="pageNum">1</span> de <span id="pageCount">-</span>
+            </span>
+            <button class="btn" id="prevBtn" onclick="previousPage()" disabled>← Anterior</button>
+            <button class="btn" id="nextBtn" onclick="nextPage()" disabled>Próxima →</button>
+            <button class="btn close-btn" onclick="closeViewer()">✕ Fechar</button>
+        </div>
+    </div>
+    
+    <!-- Container do PDF -->
+    <div class="pdf-container" id="pdfContainer">
+        <div class="loading" id="loadingDiv">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Carregando PDF protegido...</div>
+            <div class="loading-progress" id="loadingProgress"></div>
+        </div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        let pdfDoc = null;
+        let currentPage = 1;
+        let totalPages = 0;
+        
+        // Proteções contra cópia
+        document.addEventListener('keydown', function(e) {
+            // Bloquear atalhos de teclado
+            if ((e.ctrlKey && (e.key === 's' || e.key === 'p' || e.key === 'a')) || 
+                e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J'))) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            
+            // Navegação com setas
+            if (e.key === 'ArrowLeft') previousPage();
+            if (e.key === 'ArrowRight') nextPage();
+        });
+        
+        // Desabilitar menu de contexto
+        document.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            return false;
+        });
+        
+        // Desabilitar seleção
+        document.addEventListener('selectstart', e => {
+            e.preventDefault();
+            return false;
+        });
+        
+        // Desabilitar arrastar
+        document.addEventListener('dragstart', e => {
+            e.preventDefault();
+            return false;
+        });
+        
+        // Desabilitar cópia
+        document.addEventListener('copy', e => {
+            e.clipboardData.setData('text/plain', 'Conteúdo protegido - Monalisa Research');
+            e.preventDefault();
+            return false;
+        });
+        
+        // Carregar PDF do Supabase
+        async function loadPDF() {
+            const loadingDiv = document.getElementById('loadingDiv');
+            const progressDiv = document.getElementById('loadingProgress');
+            
+            try {
+                // Pegar tipo da URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const reportType = urlParams.get('type');
+                
+                if (!reportType) {
+                    throw new Error('Tipo do relatório não especificado');
+                }
+                
+                console.log('Tipo do relatório:', reportType);
+                progressDiv.textContent = 'Conectando ao servidor...';
+                
+                // Buscar relatório no Supabase
+                progressDiv.textContent = 'Buscando relatório...';
+                const { data: report, error } = await supabase
+                    .from('reports')
+                    .select('*')
+                    .eq('type', reportType)
+                    .single();
+                
+                if (error || !report) {
+                    console.error('Erro ao buscar relatório:', error);
+                    throw new Error('Relatório não encontrado no banco de dados');
+                }
+                
+                console.log('Relatório encontrado:', report);
+                console.log('URL do PDF:', report.file_url);
+                
+                // Verificar se tem URL do arquivo
+                if (!report.file_url) {
+                    throw new Error('Arquivo PDF não disponível');
+                }
+                
+                progressDiv.textContent = 'Carregando PDF...';
+                
+                // Carregar PDF da URL
+                const loadingTask = pdfjsLib.getDocument({
+                    url: report.file_url,
+                    disableTextLayer: true,
+                    disableAnnotationLayer: true,
+                    withCredentials: false,
+                    disableAutoFetch: false,
+                    disableFontFace: false
+                });
+                
+                loadingTask.promise.then(function(pdf) {
+                    console.log('PDF carregado com sucesso');
+                    pdfDoc = pdf;
+                    totalPages = pdf.numPages;
+                    document.getElementById('pageCount').textContent = totalPages;
+                    
+                    // Habilitar botões
+                    updateNavigationButtons();
+                    
+                    // Renderizar pÁginas
+                    renderAllPages();
+                }).catch(function(error) {
+                    console.error('Erro ao processar PDF:', error);
+                    showError('Erro ao processar o arquivo PDF: ' + error.message);
+                });
+                
+            } catch (error) {
+                console.error('Erro geral ao carregar PDF:', error);
+                showError('Erro ao carregar relatório: ' + error.message);
+            }
+        }
+        
+        // Renderizar todas as páginas
+        async function renderAllPages() {
+            const container = document.getElementById('pdfContainer');
+            const loadingDiv = document.getElementById('loadingDiv');
+            loadingDiv.style.display = 'none';
+            
+            for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+                const page = await pdfDoc.getPage(pageNum);
+                const scale = 1.5;
+                const viewport = page.getViewport({ scale });
+                
+                // Criar wrapper para cada página
+                const pageWrapper = document.createElement('div');
+                pageWrapper.className = 'page-wrapper';
+                pageWrapper.id = `page-${pageNum}`;
+                
+                // Adicionar marca d'água
+                const watermark = document.createElement('div');
+                watermark.className = 'watermark';
+                watermark.textContent = 'MONALISA RESEARCH - CONFIDENCIAL';
+                pageWrapper.appendChild(watermark);
+                
+                // Criar canvas
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                // Renderizar página
+                const renderContext = {
+                    canvasContext: context,
+                    viewport: viewport
+                };
+                
+                await page.render(renderContext).promise;
+                
+                // Adicionar marca d'água no canvas
+                context.globalAlpha = 0.1;
+                context.font = '30px Arial';
+                context.fillStyle = '#FF0000';
+                context.textAlign = 'center';
+                context.save();
+                context.translate(canvas.width / 2, canvas.height / 2);
+                context.rotate(-Math.PI / 4);
+                context.fillText('CONFIDENCIAL - NÃO COPIAR', 0, 0);
+                context.restore();
+                
+                pageWrapper.appendChild(canvas);
+                container.appendChild(pageWrapper);
+            }
+        }
+        
+        // Atualizar botões de navegação
+        function updateNavigationButtons() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= totalPages;
+            
+            document.getElementById('pageNum').textContent = currentPage;
+        }
+        
+        // Navegar para página anterior
+        function previousPage() {
+            if (currentPage <= 1) return;
+            currentPage--;
+            updateNavigationButtons();
+            scrollToPage(currentPage);
+        }
+        
+        // Navegar para próxima página
+        function nextPage() {
+            if (currentPage >= totalPages) return;
+            currentPage++;
+            updateNavigationButtons();
+            scrollToPage(currentPage);
+        }
+        
+        // Scroll para página específica
+        function scrollToPage(pageNum) {
+            const pageElement = document.getElementById(`page-${pageNum}`);
+            if (pageElement) {
+                pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+        
+        // Detectar scroll para atualizar página atual
+        document.getElementById('pdfContainer').addEventListener('scroll', function() {
+            const container = this;
+            const pages = container.querySelectorAll('.page-wrapper');
+            
+            pages.forEach((page, index) => {
+                const rect = page.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                
+                // Se a página está visível na viewport
+                if (rect.top >= containerRect.top && rect.top <= containerRect.bottom) {
+                    const pageNum = index + 1;
+                    if (pageNum !== currentPage) {
+                        currentPage = pageNum;
+                        updateNavigationButtons();
+                    }
+                }
+            });
+        });
+        
+        // Mostrar erro
+        function showError(message) {
+            const container = document.getElementById('pdfContainer');
+            container.innerHTML = `
+                <div class="error-message">
+                    <h2>⚠️ Erro</h2>
+                    <p>${message}</p>
+                    <br>
+                    <button class="btn" onclick="window.close()">Fechar</button>
+                </div>
+            `;
+        }
+        
+        // Fechar visualizador
+        function closeViewer() {
+            if (confirm('Deseja fechar o visualizador?')) {
+                window.close();
+            }
+        }
+        
+        // Detectar tentativa de print screen
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'PrintScreen') {
+                navigator.clipboard.writeText('Conteúdo protegido - Monalisa Research');
+                alert('Captura de tela desabilitada para este conteúdo protegido.');
+            }
+        });
+        
+        // Detectar perda de foco (possível tentativa de captura)
+        let warningCount = 0;
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                warningCount++;
+                if (warningCount > 2) {
+                    alert('Múltiplas tentativas de captura detectadas. O documento será fechado.');
+                    window.close();
+                }
+            }
+        });
+        
+        // Inicializar quando a página carregar
+        window.addEventListener('load', loadPDF);
+        
+        // Prevenir zoom com Ctrl + Scroll
+        document.addEventListener('wheel', function(e) {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                return false;
+            }
+        }, { passive: false });
+        
+        // Bloquear zoom com Ctrl + ou Ctrl -
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '0')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    </script>
+</body>
+</html>
