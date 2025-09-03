@@ -1515,50 +1515,52 @@
                 await saveReport(reportData, file);
 
                 // === ADICIONAR ESTE BLOCO AQUI ===
-                // Notificar via RD Station sobre novo relatório
-                try {
-                    console.log('Iniciando notificações RD Station...');
-                    
-                    // Buscar assinantes ativos
-                    const activeSubscribers = await sheetsService.getActiveSubscribers();
-                    
-                    if (activeSubscribers && activeSubscribers.length > 0) {
-                        console.log(`Enviando notificações para ${activeSubscribers.length} assinantes`);
-                        
-                        // Verificar se emailService tem a função correta
-                        if (emailService && typeof emailService.sendNewReportNotification === 'function') {
-                            const results = await emailService.sendNewReportNotification(
-                                activeSubscribers, 
-                                {
-                                    type: reportData.type,
-                                    title: reportData.title,
-                                    date: reportData.date,
-                                    summary: reportData.summary,
-                                    access_level: reportData.accessLevel
-                                }
-                            );
-                            
-                            const successful = results.filter(r => r.success).length;
-                            const failed = results.filter(r => !r.success).length;
-                            
-                            console.log(`RD Station - Notificações: ${successful} sucessos, ${failed} falhas`);
-                            
-                            // Opcional: Mostrar resultado na interface
-                            if (successful > 0) {
-                                setTimeout(() => {
-                                    alert(`Relatório publicado!\nNotificações enviadas: ${successful} sucessos, ${failed} falhas`);
-                                }, 1000);
-                            }
-                        } else {
-                            console.warn('EmailService RD Station não encontrado ou não inicializado');
-                        }
-                    } else {
-                        console.log('Nenhum assinante ativo encontrado');
-                    }
-                } catch (error) {
-                    console.error('Erro ao enviar notificações RD Station:', error);
-                    // Não quebrar o fluxo principal mesmo se der erro na notificação
-                }
+				// Notificar via Brevo sobre novo relatório
+				try {
+				    console.log('Iniciando notificações Brevo...');
+				    
+				    // Buscar assinantes ativos
+				    const activeSubscribers = await sheetsService.getActiveSubscribers();
+				    
+				    if (activeSubscribers && activeSubscribers.length > 0) {
+				        console.log(`Enviando notificações para ${activeSubscribers.length} assinantes`);
+				        
+				        // Verificar se emailService tem a função correta
+				        if (emailService && typeof emailService.sendBatchNotifications === 'function') {
+				            const results = await emailService.sendBatchNotifications(
+				                activeSubscribers, 
+				                {
+				                    type: reportData.type,
+				                    title: reportData.title,
+				                    date: reportData.date,
+				                    summary: reportData.summary,
+				                    access_level: reportData.accessLevel
+				                }
+				            );
+				            
+				            console.log(`Brevo - Notificações: ${results.successful} sucessos, ${results.failed} falhas`);
+				            
+				            // Opcional: Mostrar resultado na interface
+				            if (results.successful > 0) {
+				                setTimeout(() => {
+				                    alert(`Relatório publicado!\nNotificações enviadas: ${results.successful} sucessos, ${results.failed} falhas`);
+				                }, 1000);
+				            }
+				            
+				            // Log de erros detalhado se houver falhas
+				            if (results.failed > 0 && results.errors.length > 0) {
+				                console.warn('Erros no envio:', results.errors);
+				            }
+				        } else {
+				            console.warn('EmailService Brevo não encontrado ou não inicializado');
+				        }
+				    } else {
+				        console.log('Nenhum assinante ativo encontrado');
+				    }
+				} catch (error) {
+				    console.error('Erro ao enviar notificações Brevo:', error);
+				    // Não quebrar o fluxo principal mesmo se der erro na notificação
+				}
                 // === FIM DO BLOCO ===
 
                 
@@ -1599,31 +1601,28 @@
                     loadAccessCode();
                     await loadJSONFilesList();
                     
-                    // Inicializar EmailService para RD Station
-                    try {
-                        if (typeof RDStationEmailService !== 'undefined') {
-                            window.emailService = new RDStationEmailService();
-                            if (typeof RD_STATION_CONFIG !== 'undefined') {
-                                window.emailService.initialize(RD_STATION_CONFIG);
-                                
-                                // Testar configuração RD Station
-                                const testResult = await window.emailService.testConfiguration();
-                                if (testResult.success) {
-                                    console.log('EmailService RD Station inicializado no admin com sucesso');
-                                } else {
-                                    console.warn('Problema na configuração RD Station:', testResult.message);
-                                }
-                            } else {
-                                console.warn('RD_STATION_CONFIG não encontrado');
-                            }
-                        } else {
-                            console.warn('RDStationEmailService não encontrado');
-                        }
-                    } catch (error) {
-                        console.error('Erro ao inicializar RD Station no admin:', error);
-                    }
+                    // Inicializar EmailService para Brevo
+
+					try {
+					    if (typeof BrevoEmailService !== 'undefined') {
+					        window.emailService = new BrevoEmailService();
+					        
+					        // Testar configuração Brevo
+					        const testResult = await window.emailService.testConfiguration();
+					        if (testResult.success) {
+					            console.log('EmailService Brevo inicializado no admin com sucesso');
+					        } else {
+					            console.warn('Problema na configuração Brevo:', testResult.message);
+					        }
+					    } else {
+					        console.warn('BrevoEmailService não encontrado');
+					    }
+					} catch (error) {
+					    console.error('Erro ao inicializar Brevo no admin:', error);
+					}
+					
+					console.log('Sistema inicializado com Supabase e Brevo');
                     
-                    console.log('Sistema inicializado com Supabase e RD Station');
                 } catch (error) {
                     console.error('Erro na inicialização:', error);
                 }
@@ -1632,4 +1631,5 @@
 
     </script>
 </body>
+
 </html>
