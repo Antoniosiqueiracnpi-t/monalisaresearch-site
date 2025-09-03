@@ -23,11 +23,9 @@ exports.handler = async (event, context) => {
     const BREVO_API_KEY = process.env.BREVO_API_KEY;
     
     if (!BREVO_API_KEY) {
-      console.error('BREVO_API_KEY não configurada');
-      throw new Error('Configuração ausente');
+      throw new Error('BREVO_API_KEY não configurada');
     }
     
-    // Configurar email
     const emailData = {
       sender: {
         name: "Monalisa Research",
@@ -53,7 +51,7 @@ exports.handler = async (event, context) => {
               <div style="font-size: 36px; letter-spacing: 8px; font-weight: bold; color: #667eea; margin: 20px 0;">
                 ${code}
               </div>
-              <p style="color: #999; font-size: 14px; margin-top: 10px;">Válido por 2 horas</p>
+              <p style="color: #999; font-size: 14px; margin-top: 10px;">Válido por 30 minutos</p>
             </div>
             
             <p style="color: #999; font-size: 14px; text-align: center;">
@@ -70,9 +68,6 @@ exports.handler = async (event, context) => {
       `
     };
     
-    console.log('Enviando email via Brevo para:', email);
-    
-    // Enviar via API Brevo
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
@@ -90,8 +85,6 @@ exports.handler = async (event, context) => {
       throw new Error(result.message || 'Erro ao enviar email');
     }
     
-    console.log('Email enviado com sucesso. ID:', result.messageId);
-    
     return {
       statusCode: 200,
       headers,
@@ -101,16 +94,15 @@ exports.handler = async (event, context) => {
         messageId: result.messageId
       })
     };
-
+    
   } catch (error) {
     console.error('Erro:', error);
-    // Retorna sucesso mesmo com erro para não bloquear o usuário
     return {
-      statusCode: 200,
+      statusCode: 500,
       headers,
       body: JSON.stringify({ 
-        success: true, 
-        message: 'Processado (verifique email em alguns minutos)'
+        success: false, 
+        error: error.message 
       })
     };
   }
