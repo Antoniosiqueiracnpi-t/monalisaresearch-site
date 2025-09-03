@@ -8,8 +8,8 @@ const GOOGLE_SHEETS_API_KEY = 'AIzaSyDfXfFTzgEIP5CvBi-xaRiVty_GkvI7Tq8';
 
 // Configuração RD Station
 const RD_STATION_CONFIG = {
-    apiToken: 'e9e9ee765a21e6c6cb8a7b7f585c4be2', // Substituir pelo token real
     baseURL: 'https://api.rd.services',
+    // Token removido - usar apenas variável de ambiente RD_STATION_TOKEN
     // IDs das automações (configurar depois no RD Station)
     automations: {
         accessCode: 'access_code_request',
