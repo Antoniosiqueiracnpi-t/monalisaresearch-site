@@ -649,6 +649,7 @@
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
+	<script src="email-service.js"></script>
 </head>
 <body>
     <!-- Login Container -->
@@ -857,8 +858,68 @@
 
     </div> <!-- Fechamento do upload-container -->
 
-
-
+	<script>
+	// Google Sheets Service
+	class GoogleSheetsService {
+	    constructor() {
+	        this.SPREADSHEET_ID = '1--E380ln9HjsiDX5fbw0NbZfXdWFn4CcTgx55Fgzw-w';
+	        this.SHEET_NAME = 'Assinantes';
+	        this.API_KEY = null;
+	        
+	        this.COLUMNS = {
+	            NOME: 'A',
+	            CPF: 'B', 
+	            EMAIL: 'C',
+	            TELEFONE: 'D',
+	            STATUS: 'E',
+	            DATA_INICIO: 'F',
+	            DATA_FIM: 'G'
+	        };
+	    }
+	
+	    initialize(apiKey) {
+	        this.API_KEY = apiKey;
+	    }
+	
+	    async getActiveSubscribers() {
+	        try {
+	            const range = 'Assinantes!A:G';
+	            const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${this.API_KEY}`;
+	            
+	            const response = await fetch(url);
+	            if (!response.ok) throw new Error('Erro ao buscar assinantes');
+	            
+	            const data = await response.json();
+	            const rows = data.values || [];
+	            
+	            const activeSubscribers = [];
+	            
+	            for (let i = 1; i < rows.length; i++) {
+	                const row = rows[i];
+	                const status = (row[4] || '').toLowerCase();
+	                
+	                if (status === 'ativo' && row[2]) { // Status ativo e tem email
+	                    activeSubscribers.push({
+	                        nome: row[0],
+	                        cpf: row[1],
+	                        email: row[2],
+	                        telefone: row[3]
+	                    });
+	                }
+	            }
+	            
+	            return activeSubscribers;
+	            
+	        } catch (error) {
+	            console.error('Erro ao buscar assinantes ativos:', error);
+	            return [];
+	        }
+	    }
+	}
+	
+	// Inicializar serviço
+	const sheetsService = new GoogleSheetsService();
+	</script>
     
     <script>
         // Sistema de Autenticação
@@ -1589,47 +1650,61 @@
             submitBtn.disabled = false;
             submitBtn.textContent = 'Publicar Relatório';
         });
-        
-        // Verificar autenticação ao carregar
-        window.addEventListener('load', async () => {
-            if (checkAuth()) {
-                document.getElementById('loginContainer').style.display = 'none';
-                document.getElementById('uploadContainer').style.display = 'block';
-                
-                try {
-                    await loadReportsList();
-                    loadAccessCode();
-                    await loadJSONFilesList();
-                    
-                    // Inicializar EmailService para Brevo
-
-					try {
-					    if (typeof BrevoEmailService !== 'undefined') {
-					        window.emailService = new BrevoEmailService();
-					        
-					        // Testar configuração Brevo
-					        const testResult = await window.emailService.testConfiguration();
-					        if (testResult.success) {
-					            console.log('EmailService Brevo inicializado no admin com sucesso');
-					        } else {
-					            console.warn('Problema na configuração Brevo:', testResult.message);
-					        }
-					    } else {
-					        console.warn('BrevoEmailService não encontrado');
-					    }
-					} catch (error) {
-					    console.error('Erro ao inicializar Brevo no admin:', error);
-					}
-					
-					console.log('Sistema inicializado com Supabase e Brevo');
-                    
-                } catch (error) {
-                    console.error('Erro na inicialização:', error);
-                }
-            }
-        });
+		// Verificar autenticação ao carregar
+		window.addEventListener('load', async () => {
+		    if (checkAuth()) {
+		        document.getElementById('loginContainer').style.display = 'none';
+		        document.getElementById('uploadContainer').style.display = 'block';
+		        
+		        try {
+		            // Inicializar Google Sheets Service
+		            sheetsService.initialize(GOOGLE_SHEETS_API_KEY);
+		            
+		            // Carregar dados existentes
+		            await loadReportsList();
+		            loadAccessCode();
+		            await loadJSONFilesList();
+		            
+		            // Inicializar EmailService para Brevo
+		            try {
+		                if (typeof BrevoEmailService !== 'undefined') {
+		                    window.emailService = new BrevoEmailService();
+		                    
+		                    // Testar configuração Brevo
+		                    const testResult = await window.emailService.testConfiguration();
+		                    if (testResult.success) {
+		                        console.log('EmailService Brevo inicializado no admin com sucesso');
+		                        console.log('Endpoints disponíveis:', testResult.endpoints);
+		                    } else {
+		                        console.warn('Problema na configuração Brevo:', testResult.message);
+		                        console.warn('Detalhes:', testResult.endpoints);
+		                    }
+		                } else {
+		                    console.warn('BrevoEmailService não encontrado. Verifique se email-service.js foi carregado');
+		                }
+		            } catch (error) {
+		                console.error('Erro ao inicializar Brevo no admin:', error);
+		                // Não interrompe a aplicação se o email falhar
+		                window.emailService = null;
+		            }
+		            
+		            console.log('Sistema inicializado com Supabase e Brevo');
+		            console.log('Serviços disponíveis:', {
+		                supabase: !!supabase,
+		                sheetsService: !!sheetsService,
+		                emailService: !!window.emailService
+		            });
+		            
+		        } catch (error) {
+		            console.error('Erro na inicialização geral:', error);
+		            // Ainda permite uso do admin mesmo com erro parcial
+		            alert('Sistema carregado com funcionalidade limitada. Verifique o console para detalhes.');
+		        }
+		    }
+		});
 
     </script>
 </body>
 
 </html>
+
