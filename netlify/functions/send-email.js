@@ -84,15 +84,15 @@ Este email foi enviado para ${email}
           </xml>
           <![endif]-->
         </head>
-        <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+        <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #0B1426; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
           
           <!-- Wrapper para melhor compatibilidade -->
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
             <tr>
-              <td style="background-color: #f4f4f4; padding: 20px 0;">
+              <td style="background-color: #0B1426; padding: 20px 0;">
                 
                 <!-- Container principal -->
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; overflow: hidden;">
                   
                   <!-- Header -->
                   <tr>
@@ -121,34 +121,34 @@ Este email foi enviado para ${email}
                   
                   <!-- Corpo do email -->
                   <tr>
-                    <td style="padding: 30px; font-family: Arial, Helvetica, sans-serif;">
+                    <td style="padding: 30px; font-family: Arial, Helvetica, sans-serif; background-color: rgba(255, 255, 255, 0.03);">
                       
                       <!-- Saudação -->
-                      <h2 style="color: #333333; font-size: 24px; margin: 0 0 20px 0; font-weight: bold;">
+                      <h2 style="color: #ffffff; font-size: 24px; margin: 0 0 20px 0; font-weight: bold;">
                         Olá ${name}!
                       </h2>
                       
-                      <p style="color: #666666; font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                      <p style="color: rgba(255, 255, 255, 0.85); font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
                         Você solicitou acesso aos relatórios exclusivos da Monalisa Research. Use o código abaixo para autenticar seu acesso.
                       </p>
                       
                       <!-- Box do código -->
-                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(135deg, #4A90E2 0%, #7B68EE 100%); border-radius: 12px; margin: 25px 0;">
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%); border: 2px solid #4A90E2; border-radius: 12px; margin: 25px 0;">
                         <tr>
                           <td style="padding: 30px; text-align: center;">
                             
-                            <p style="color: #ffffff; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; font-weight: bold; opacity: 0.9;">
+                            <p style="color: #4A90E2; font-size: 12px; font-weight: bold; text-transform: uppercase; margin: 0 0 15px 0;">
                               Seu código de acesso
                             </p>
                             
                             <!-- Código em destaque -->
-                            <div style="background-color: #ffffff; padding: 15px 20px; border-radius: 8px; margin: 15px 0; display: inline-block;">
+                            <div style="background-color: rgba(0, 0, 0, 0.3); padding: 15px 20px; border-radius: 8px; margin: 15px 0; display: inline-block; border: 1px solid rgba(74, 144, 226, 0.3);">
                               <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #4A90E2; font-family: 'Courier New', Courier, monospace;">
                                 ${code}
                               </div>
                             </div>
                             
-                            <p style="color: #ffffff; font-size: 13px; margin: 15px 0 0 0; opacity: 0.9;">
+                            <p style="color: rgba(255, 255, 255, 0.6); font-size: 14px; margin: 15px 0 0 0;">
                               ⏱️ Válido por 30 minutos
                             </p>
                           </td>
@@ -156,24 +156,24 @@ Este email foi enviado para ${email}
                       </table>
                       
                       <!-- Instruções de uso -->
-                      <div style="background-color: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; margin: 20px 0; border-radius: 0 6px 6px 0;">
-                        <p style="color: #1565c0; font-size: 14px; margin: 0; line-height: 1.6;">
-                          <strong>💡 Como usar:</strong> Digite este código na tela de autenticação para liberar o acesso aos relatórios exclusivos. Após validado, sua sessão permanecerá ativa por <strong>2 horas</strong>.
+                      <div style="background: rgba(74, 144, 226, 0.08); border-left: 4px solid #4A90E2; padding: 15px; margin: 20px 0; border-radius: 0 6px 6px 0;">
+                        <p style="color: rgba(255, 255, 255, 0.8); font-size: 14px; margin: 0; line-height: 1.6;">
+                          <strong style="color: #4A90E2;">💡 Como usar:</strong> Digite este código na tela de autenticação para liberar o acesso aos relatórios exclusivos. Após validado, sua sessão permanecerá ativa por <strong>2 horas</strong>.
                         </p>
                       </div>
                       
                       <!-- Informações de segurança -->
-                      <div style="background-color: #f1f8e9; border: 1px solid #c8e6c9; border-radius: 6px; padding: 15px; margin: 20px 0;">
-                        <p style="color: #2e7d32; font-size: 14px; margin: 0; line-height: 1.6;">
-                          <strong>🛡️ Email Seguro:</strong> Este email foi enviado pela Monalisa Research através de servidor autenticado. Analista responsável: Antonio Carlos Martins de Siqueira, CNPI-T 7131.
+                      <div style="background: rgba(76, 175, 80, 0.08); border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 6px; padding: 15px; margin: 20px 0;">
+                        <p style="color: rgba(255, 255, 255, 0.8); font-size: 14px; margin: 0; line-height: 1.6;">
+                          <strong style="color: #4CAF50;">🛡️ Email Seguro:</strong> Este email foi enviado pela Monalisa Research através de servidor autenticado. Analista responsável: Antonio Carlos Martins de Siqueira, CNPI-T 7131.
                         </p>
                       </div>
                       
                       <!-- Aviso de segurança -->
-                      <div style="background-color: #fff3e0; border: 1px solid #ffcc02; border-radius: 6px; padding: 12px; margin: 20px 0; text-align: center;">
-                        <p style="color: #ef6c00; font-size: 13px; margin: 0;">
+                      <div style="background: rgba(255, 152, 0, 0.08); border: 1px solid rgba(255, 152, 0, 0.3); border-radius: 6px; padding: 12px; margin: 20px 0; text-align: center;">
+                        <p style="color: rgba(255, 255, 255, 0.8); font-size: 13px; margin: 0;">
                           ⚠️ Se você não solicitou este código, pode ignorar este email com segurança.<br>
-                          <strong>Não compartilhe este código com terceiros.</strong>
+                          <strong style="color: #FF9800;">Não compartilhe este código com terceiros.</strong>
                         </p>
                       </div>
                       
@@ -189,7 +189,7 @@ Este email foi enviado para ${email}
                       </p>
                       <p style="color: rgba(255, 255, 255, 0.9); font-size: 12px; margin: 0 0 15px 0; line-height: 1.6;">
                         Relatórios de Investimentos - Análises Quantitativas<br>
-                        CNPJ: 59.932.253/0001-46 
+                        CNPJ: 59.932.253/0001-46<br>
                         Credenciada APIMEC Brasil
                       </p>
                       
