@@ -19,12 +19,27 @@ exports.handler = async (event, context) => {
   }
   
   try {
+    console.log('Event received:', JSON.stringify(event, null, 2));
+    
+    if (!event.body) {
+      throw new Error('Body não encontrado no evento');
+    }
+    
     const { email, name, report } = JSON.parse(event.body);
+    console.log('Dados extraídos:', { email, name: name, reportType: report?.type });
+    
+    if (!email || !name || !report) {
+      throw new Error('Dados obrigatórios não fornecidos: email, name, report');
+    }
+    
     const BREVO_API_KEY = process.env.BREVO_API_KEY;
     
     if (!BREVO_API_KEY) {
+      console.error('BREVO_API_KEY não está configurada');
       throw new Error('BREVO_API_KEY não configurada');
     }
+    
+    console.log('Brevo API Key encontrada:', BREVO_API_KEY.substring(0, 10) + '...');
     
     const typeNames = {
       'brasil': 'Monalisa Brasil',
@@ -52,6 +67,9 @@ exports.handler = async (event, context) => {
     
     const reportColor = typeColors[report.type] || '#4A90E2';
     const reportName = typeNames[report.type] || 'Relatório';
+    
+    console.log('Preparando dados do email...');
+    console.log('Report color:', reportColor, 'Report name:', reportName);
     
     const emailData = {
       sender: {
@@ -114,154 +132,140 @@ Para cancelar o recebimento, responda este email solicitando descadastro.
           </xml>
           <![endif]-->
         </head>
-        <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+        <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #0B1426;">
           
-          <!-- Wrapper para melhor compatibilidade -->
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-            <tr>
-              <td style="background-color: #f4f4f4; padding: 20px 0;">
+          <!-- Container de fundo escuro -->
+          <div style="background-color: #0B1426; padding: 20px 0; width: 100%; min-height: 100vh;">
+            
+            <!-- Container principal -->
+            <div style="max-width: 600px; margin: 0 auto; background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px;">
+              
+              <!-- Header -->
+              <div style="background: linear-gradient(135deg, #4A90E2 0%, #7B68EE 50%, #764ba2 100%); padding: 40px 30px; text-align: center; border-radius: 16px 16px 0 0;">
                 
-                <!-- Container principal -->
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-                  
-                  <!-- Header -->
-                  <tr>
-                    <td style="background: linear-gradient(135deg, #4A90E2 0%, #7B68EE 50%, #764ba2 100%); padding: 40px 30px; text-align: center;">
-                      
-                      <!-- Logo -->
-                      <img src="https://i.postimg.cc/ZYf8MfJf/Logo-1-Branco.png" 
-                           alt="Monalisa Research" 
-                           style="height: 60px; max-width: 100%; display: block; margin: 0 auto 20px auto;"
-                           width="auto"
-                           height="60">
-                      
-                      <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;">
-                        Monalisa Research
-                      </h1>
-                      <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
-                        Novo Relatório Disponível
-                      </p>
-                    </td>
-                  </tr>
-                  
-                  <!-- Corpo do email -->
-                  <tr>
-                    <td style="padding: 30px; font-family: Arial, Helvetica, sans-serif;">
-                      
-                      <!-- Saudação -->
-                      <h2 style="color: #333333; font-size: 24px; margin: 0 0 20px 0; font-weight: bold;">
-                        Olá ${name}!
-                      </h2>
-                      
-                      <p style="color: #666666; font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
-                        Acabamos de publicar um novo relatório exclusivo para você.
-                      </p>
-                      
-                      <!-- Card do relatório -->
-                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f8f9fa; border: 2px solid ${reportColor}; border-radius: 8px; margin: 20px 0;">
-                        <tr>
-                          <td style="padding: 25px;">
-                            
-                            <!-- Tipo do relatório -->
-                            <p style="color: ${reportColor}; font-size: 12px; font-weight: bold; text-transform: uppercase; margin: 0 0 10px 0; font-family: Arial, Helvetica, sans-serif;">
-                              ${reportName}
-                            </p>
-                            
-                            <!-- Título -->
-                            <h3 style="color: #333333; font-size: 20px; font-weight: bold; margin: 0 0 10px 0; line-height: 1.3;">
-                              ${report.title}
-                            </h3>
-                            
-                            <!-- Data -->
-                            <p style="color: #999999; font-size: 14px; margin-bottom: 15px;">
-                              ${new Date(report.date).toLocaleDateString('pt-BR', { 
-                                day: '2-digit', 
-                                month: 'long', 
-                                year: 'numeric' 
-                              })}
-                            </p>
-                            
-                            <!-- Resumo -->
-                            <div style="background-color: #ffffff; padding: 15px; border-radius: 6px; margin: 15px 0;">
-                              <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0;">
-                                ${report.summary}
-                              </p>
-                            </div>
-                            
-                            <!-- Botão de acesso -->
-                            <div style="text-align: center; margin-top: 20px;">
-                              <a href="https://monalisaresearch.com.br" 
-                                 style="display: inline-block; background-color: ${reportColor}; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; font-family: Arial, Helvetica, sans-serif;">
-                                Acessar Relatório
-                              </a>
-                            </div>
-                            
-                            <!-- Status de acesso -->
-                            ${report.access_level === 'private' ? `
-                              <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 6px; margin-top: 15px; text-align: center;">
-                                <p style="color: #856404; font-size: 13px; margin: 0;">
-                                  ⚠️ Relatório exclusivo - Login necessário
-                                </p>
-                              </div>
-                            ` : `
-                              <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 10px; border-radius: 6px; margin-top: 15px; text-align: center;">
-                                <p style="color: #0c5460; font-size: 13px; margin: 0;">
-                                  ✅ Relatório de acesso público
-                                </p>
-                              </div>
-                            `}
-                            
-                          </td>
-                        </tr>
-                      </table>
-                      
-                      <!-- Informações adicionais -->
-                      <div style="background-color: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; margin: 20px 0;">
-                        <p style="color: #1565c0; font-size: 14px; margin: 0; line-height: 1.6;">
-                          <strong>💡 Dica:</strong> Acesse nosso portal para ver todos os relatórios disponíveis e acompanhar as atualizações das suas estratégias favoritas.
-                        </p>
-                      </div>
-                      
-                    </td>
-                  </tr>
-                  
-                  <!-- Footer -->
-                  <tr>
-                    <td style="background-color: #f8f9fa; padding: 25px 30px; text-align: center; border-top: 1px solid #e9ecef; font-family: Arial, Helvetica, sans-serif;">
-                      
-                      <p style="color: #4A90E2; font-size: 14px; font-weight: bold; margin: 0 0 10px 0;">
-                        Monalisa Research
-                      </p>
-                      <p style="color: #666666; font-size: 12px; margin: 0 0 15px 0; line-height: 1.6;">
-                        Análises Quantitativas Alimentadas por IA<br>
-                        CNPJ: 59.932.253/0001-46 | Analista CNPI-T 7131<br>
-                        Credenciada APIMEC Brasil
-                      </p>
-                      
-                      <p style="color: #666666; font-size: 12px; margin: 0 0 15px 0; line-height: 1.6;">
-                        <strong>Endereço:</strong><br>
-                        Anália Business Center<br>
-                        Av. Ver. Abel Ferreira, 1844 - Sala 1803<br>
-                        Jardim Analia Franco, São Paulo - SP, 03372-015
-                      </p>
-                      
-                      <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 15px; margin-top: 15px;">
-                        <p style="color: rgba(255, 255, 255, 0.5); font-size: 11px; margin: 0; line-height: 1.5;">
-                          © 2025 Monalisa Research. Todos os direitos reservados.<br>
-                          Este email foi enviado para ${email}<br>
-                          <a href="mailto:contato@monalisaresearch.com.br?subject=Descadastrar%20Notificacoes" 
-                             style="color: rgba(255, 255, 255, 0.6); text-decoration: underline;">Descadastrar notificações</a>
-                        </p>
-                      </div>
-                      
-                    </td>
-                  </tr>
-                  
-                </table>
+                <!-- Logo -->
+                <img src="https://i.postimg.cc/ZYf8MfJf/Logo-1-Branco.png" 
+                     alt="Monalisa Research" 
+                     style="height: 60px; max-width: 100%; display: block; margin: 0 auto 20px auto;"
+                     width="auto"
+                     height="60">
                 
-              </td>
-            </tr>
-          </table>
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;">
+                  Monalisa Research
+                </h1>
+                <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
+                  Novo Relatório Disponível
+                </p>
+              </div>
+              
+              <!-- Corpo do email -->
+              <div style="padding: 30px; font-family: Arial, Helvetica, sans-serif; background: rgba(255, 255, 255, 0.02);">
+                
+                <!-- Saudação -->
+                <h2 style="color: #ffffff; font-size: 24px; margin: 0 0 20px 0; font-weight: bold;">
+                  Olá ${name}!
+                </h2>
+                
+                <p style="color: rgba(255, 255, 255, 0.85); font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                  Acabamos de publicar um novo relatório exclusivo para você.
+                </p>
+                
+                <!-- Card do relatório -->
+                <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.05) 100%); border: 2px solid ${reportColor}; border-radius: 12px; margin: 20px 0; padding: 25px;">
+                  
+                  <!-- Tipo do relatório -->
+                  <p style="color: ${reportColor}; font-size: 12px; font-weight: bold; text-transform: uppercase; margin: 0 0 10px 0; font-family: Arial, Helvetica, sans-serif;">
+                    ${reportName}
+                  </p>
+                  
+                  <!-- Título -->
+                  <h3 style="color: #ffffff; font-size: 20px; font-weight: bold; margin: 0 0 10px 0; line-height: 1.3;">
+                    ${report.title}
+                  </h3>
+                  
+                  <!-- Data -->
+                  <p style="color: rgba(255, 255, 255, 0.6); font-size: 14px; margin-bottom: 15px;">
+                    ${new Date(report.date).toLocaleDateString('pt-BR', { 
+                      day: '2-digit', 
+                      month: 'long', 
+                      year: 'numeric' 
+                    })}
+                  </p>
+                  
+                  <!-- Resumo -->
+                  <div style="background-color: rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <p style="color: rgba(255, 255, 255, 0.8); font-size: 15px; line-height: 1.6; margin: 0;">
+                      ${report.summary}
+                    </p>
+                  </div>
+                  
+                  <!-- Botão de acesso -->
+                  <div style="text-align: center; margin-top: 20px;">
+                    <a href="https://monalisaresearch.com.br" 
+                       style="display: inline-block; background-color: ${reportColor}; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; font-family: Arial, Helvetica, sans-serif;">
+                      Acessar Relatório
+                    </a>
+                  </div>
+                  
+                  <!-- Status de acesso -->
+                  ${report.access_level === 'private' ? `
+                    <div style="background-color: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.4); padding: 10px; border-radius: 6px; margin-top: 15px; text-align: center;">
+                      <p style="color: rgba(255, 255, 255, 0.8); font-size: 13px; margin: 0;">
+                        ⚠️ Relatório exclusivo - Login necessário
+                      </p>
+                    </div>
+                  ` : `
+                    <div style="background-color: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.4); padding: 10px; border-radius: 6px; margin-top: 15px; text-align: center;">
+                      <p style="color: rgba(255, 255, 255, 0.8); font-size: 13px; margin: 0;">
+                        ✅ Relatório de acesso público
+                      </p>
+                    </div>
+                  `}
+                  
+                </div>
+                
+                <!-- Informações adicionais -->
+                <div style="background: rgba(74, 144, 226, 0.08); border-left: 4px solid #4A90E2; padding: 15px; margin: 20px 0; border-radius: 0 6px 6px 0;">
+                  <p style="color: rgba(255, 255, 255, 0.8); font-size: 14px; margin: 0; line-height: 1.6;">
+                    <strong style="color: #4A90E2;">💡 Dica:</strong> Acesse nosso portal para ver todos os relatórios disponíveis e acompanhar as atualizações das suas estratégias favoritas.
+                  </p>
+                </div>
+                
+              </div>
+              
+              <!-- Footer -->
+              <div style="background-color: rgba(11, 20, 38, 0.8); padding: 25px 30px; text-align: center; border-top: 1px solid rgba(255, 255, 255, 0.1); font-family: Arial, Helvetica, sans-serif; border-radius: 0 0 16px 16px;">
+                
+                <p style="color: #4A90E2; font-size: 14px; font-weight: bold; margin: 0 0 10px 0;">
+                  Monalisa Research
+                </p>
+                <p style="color: rgba(255, 255, 255, 0.9); font-size: 12px; margin: 0 0 15px 0; line-height: 1.6;">
+                  Análises Quantitativas Alimentadas por IA<br>
+                  CNPJ: 59.932.253/0001-46 | Analista CNPI-T 7131<br>
+                  Credenciada APIMEC Brasil
+                </p>
+                
+                <p style="color: rgba(255, 255, 255, 0.7); font-size: 12px; margin: 0 0 15px 0; line-height: 1.6;">
+                  <strong>Endereço:</strong><br>
+                  Anália Business Center<br>
+                  Av. Ver. Abel Ferreira, 1844 - Sala 1803<br>
+                  Jardim Analia Franco, São Paulo - SP, 03372-015
+                </p>
+                
+                <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 15px; margin-top: 15px;">
+                  <p style="color: rgba(255, 255, 255, 0.5); font-size: 11px; margin: 0; line-height: 1.5;">
+                    © 2025 Monalisa Research. Todos os direitos reservados.<br>
+                    Este email foi enviado para ${email}<br>
+                    <a href="mailto:contato@monalisaresearch.com.br?subject=Descadastrar%20Notificacoes" 
+                       style="color: rgba(255, 255, 255, 0.6); text-decoration: underline;">Descadastrar notificações</a>
+                  </p>
+                </div>
+                
+              </div>
+              
+            </div>
+            
+          </div>
           
         </body>
         </html>
@@ -272,6 +276,10 @@ Para cancelar o recebimento, responda este email solicitando descadastro.
         "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
       }
     };
+    
+    console.log('Dados do email preparados, enviando para Brevo...');
+    console.log('To:', emailData.to[0].email);
+    console.log('Subject:', emailData.subject);
     
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
@@ -286,10 +294,17 @@ Para cancelar o recebimento, responda este email solicitando descadastro.
     
     const result = await response.json();
     
+    console.log('Resposta da API Brevo:');
+    console.log('Status:', response.status);
+    console.log('Headers:', Object.fromEntries(response.headers.entries()));
+    console.log('Body:', result);
+    
     if (!response.ok) {
-      console.error('Erro Brevo:', result);
-      throw new Error(result.message || 'Erro ao enviar email');
+      console.error('Erro detalhado da Brevo:', JSON.stringify(result, null, 2));
+      throw new Error(`Erro Brevo (${response.status}): ${result.message || 'Erro desconhecido'}`);
     }
+    
+    console.log('Email enviado com sucesso! MessageId:', result.messageId);
     
     return {
       statusCode: 200,
