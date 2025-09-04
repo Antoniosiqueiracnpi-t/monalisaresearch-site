@@ -56,7 +56,7 @@ exports.handler = async (event, context) => {
     const emailData = {
       sender: {
         name: "Monalisa Research",
-        email: "antonio.siqueira@monalisaresearch.com.br"
+        email: "contato@monalisaresearch.com.br"
       },
       to: [{
         email: email,
