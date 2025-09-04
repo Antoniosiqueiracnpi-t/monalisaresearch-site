@@ -57,8 +57,8 @@ Se você não solicitou este código, pode ignorar este email com segurança.
 
 ---
 Monalisa Research
-Análises Quantitativas Alimentadas por IA
-CNPJ: 59.932.253/0001-46 | Analista CNPI-T 7131
+Relatórios de Investimentos - Análises Quantitativas
+CNPJ: 59.932.253/0001-46
 Credenciada APIMEC Brasil
 
 Endereço:
@@ -182,30 +182,30 @@ Este email foi enviado para ${email}
                   
                   <!-- Footer -->
                   <tr>
-                    <td style="background-color: #f8f9fa; padding: 25px 30px; text-align: center; border-top: 1px solid #e9ecef; font-family: Arial, Helvetica, sans-serif;">
+                    <td style="background-color: rgba(11, 20, 38, 0.8); padding: 25px 30px; text-align: center; border-top: 1px solid rgba(255, 255, 255, 0.1); font-family: Arial, Helvetica, sans-serif;">
                       
                       <p style="color: #4A90E2; font-size: 14px; font-weight: bold; margin: 0 0 10px 0;">
                         Monalisa Research
                       </p>
-                      <p style="color: #666666; font-size: 12px; margin: 0 0 15px 0; line-height: 1.6;">
-                        Análises Quantitativas Alimentadas por IA<br>
-                        CNPJ: 59.932.253/0001-46 | Analista CNPI-T 7131<br>
+                      <p style="color: rgba(255, 255, 255, 0.9); font-size: 12px; margin: 0 0 15px 0; line-height: 1.6;">
+                        Relatórios de Investimentos - Análises Quantitativas<br>
+                        CNPJ: 59.932.253/0001-46 
                         Credenciada APIMEC Brasil
                       </p>
                       
-                      <p style="color: #666666; font-size: 12px; margin: 0 0 15px 0; line-height: 1.6;">
+                      <p style="color: rgba(255, 255, 255, 0.7); font-size: 12px; margin: 0 0 15px 0; line-height: 1.6;">
                         <strong>Endereço:</strong><br>
                         Anália Business Center<br>
                         Av. Ver. Abel Ferreira, 1844 - Sala 1803<br>
                         Jardim Analia Franco, São Paulo - SP, 03372-015
                       </p>
                       
-                      <div style="border-top: 1px solid #dee2e6; padding-top: 15px; margin-top: 15px;">
-                        <p style="color: #999999; font-size: 11px; margin: 0; line-height: 1.5;">
+                      <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 15px; margin-top: 15px;">
+                        <p style="color: rgba(255, 255, 255, 0.5); font-size: 11px; margin: 0; line-height: 1.5;">
                           © 2025 Monalisa Research. Todos os direitos reservados.<br>
                           Este email foi enviado para ${email}<br>
                           <a href="mailto:contato@monalisaresearch.com.br?subject=Unsubscribe" 
-                             style="color: #666666; text-decoration: underline;">Descadastrar</a>
+                             style="color: rgba(255, 255, 255, 0.6); text-decoration: underline;">Descadastrar</a>
                         </p>
                       </div>
                       
