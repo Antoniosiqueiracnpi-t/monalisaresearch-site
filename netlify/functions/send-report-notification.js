@@ -104,8 +104,8 @@ ${report.access_level === 'private' ? 'Este é um relatório exclusivo. Você pr
 
 ---
 Monalisa Research
-Análises Quantitativas Alimentadas por IA
-CNPJ: 59.932.253/0001-46 | Analista CNPI-T 7131
+Relatórios de Investimentos - Análises Quantitativas
+CNPJ: 59.932.253/0001-46
 Credenciada APIMEC Brasil
 
 Endereço:
@@ -251,8 +251,8 @@ Para cancelar o recebimento, responda este email solicitando descadastro.
                         Monalisa Research
                       </p>
                       <p style="color: rgba(255, 255, 255, 0.9); font-size: 12px; margin: 0 0 15px 0; line-height: 1.6;">
-                        Análises Quantitativas Alimentadas por IA<br>
-                        CNPJ: 59.932.253/0001-46 | Analista CNPI-T 7131<br>
+                        Relatórios de Investimentos - Análises Quantitativas<br>
+                        CNPJ: 59.932.253/0001-46<br>
                         Credenciada APIMEC Brasil
                       </p>
                       
