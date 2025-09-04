@@ -2312,33 +2312,25 @@
 		        this.activeCodes = new Map();
 		        this.CODE_EXPIRY = 30 * 60 * 1000; // 30 minutos
 		    }
-		    
-		    generateTemporaryPassword(cpf) {
-		        const cleanCPF = cpf.replace(/\D/g, '');
-		        
-		        // CORREÇÃO: Verificar se já existe um código válido antes de gerar novo
-		        const existingCode = this.activeCodes.get(cleanCPF);
-		        if (existingCode && Date.now() < existingCode.expires) {
-		            console.log('Código ainda válido para CPF:', cleanCPF.substring(0, 3) + '***');
-		            console.log('Código expira em:', new Date(existingCode.expires));
-		            return existingCode.code; // Retornar o mesmo código
-		        }
-		        
-		        // Gerar novo código apenas se não existe ou expirou
-		        const code = Math.floor(100000 + Math.random() * 900000).toString();
-		        
-		        this.activeCodes.set(cleanCPF, {
-		            code: code,
-		            timestamp: Date.now(),
-		            expires: Date.now() + this.CODE_EXPIRY
-		        });
-		        
-		        console.log('Novo código gerado para CPF:', cleanCPF.substring(0, 3) + '***');
-		        console.log('Código expira em:', new Date(Date.now() + this.CODE_EXPIRY));
-		        
-		        this.cleanExpiredCodes();
-		        return code;
-		    }
+
+			generateTemporaryPassword(cpf) {
+			    const cleanCPF = cpf.replace(/\D/g, '');
+			    
+			    // Sempre gerar um novo código quando solicitado
+			    const code = Math.floor(100000 + Math.random() * 900000).toString();
+			    
+			    this.activeCodes.set(cleanCPF, {
+			        code: code,
+			        timestamp: Date.now(),
+			        expires: Date.now() + this.CODE_EXPIRY
+			    });
+			    
+			    console.log('Novo código gerado para CPF:', cleanCPF.substring(0, 3) + '***');
+			    console.log('Código expira em:', new Date(Date.now() + this.CODE_EXPIRY));
+			    
+			    this.cleanExpiredCodes();
+			    return code;
+			}
 		    
 		    validateTemporaryPassword(cpf, code) {
 		        const cleanCPF = cpf.replace(/\D/g, '');
@@ -2425,39 +2417,34 @@
 
 		// Verificar sessão existente no servidor
 		async function checkExistingSession(cpf) {
-		    console.log('🔍 Verificando sessão existente para CPF:', cpf.substring(0, 3) + '***'); // Debug
-		    
 		    try {
 		        const { data, error } = await supabase
 		            .from('user_sessions')
 		            .select('*')
 		            .eq('cpf', cpf)
-		            .single();
+		            .maybeSingle(); // Use maybeSingle() ao invés de single()
 		        
 		        if (error) {
-		            console.log('❌ Erro ao buscar sessão:', error.message);
+		            console.log('Erro ao buscar sessão:', error.message);
 		            return { hasActiveSession: false };
 		        }
 		        
 		        if (!data) {
-		            console.log('ℹ️ Nenhuma sessão encontrada no servidor');
+		            console.log('Nenhuma sessão encontrada no servidor');
 		            return { hasActiveSession: false };
 		        }
 		        
 		        const serverExpiresAt = new Date(data.expires_at).getTime();
 		        const now = Date.now();
 		        
-		        console.log('⏰ Sessão no servidor expira em:', new Date(data.expires_at));
-		        console.log('⏰ Horário atual:', new Date(now));
-		        
 		        if (now < serverExpiresAt) {
-		            console.log('✅ Sessão válida encontrada no servidor');
+		            console.log('Sessão válida encontrada no servidor');
 		            return { 
 		                hasActiveSession: true, 
 		                sessionData: data 
 		            };
 		        } else {
-		            console.log('⚠️ Sessão expirada, removendo do servidor');
+		            console.log('Sessão expirada, removendo do servidor');
 		            // Limpar sessão expirada
 		            await supabase
 		                .from('user_sessions')
@@ -2489,10 +2476,14 @@
 		        localStorage.setItem('cpfAuthSession', JSON.stringify(sessionData));
 		        
 		        // Atualizar last_accessed no servidor
-		        await supabase
+		        const { error } = await supabase
 		            .from('user_sessions')
 		            .update({ last_accessed: new Date().toISOString() })
 		            .eq('cpf', cpf);
+		        
+		        if (error) {
+		            console.error('Erro ao atualizar last_accessed:', error);
+		        }
 		        
 		        console.log('Sessão restaurada do servidor com sucesso');
 		        return true;
@@ -2517,45 +2508,90 @@
 		    }
 		}
 
-
 		async function initializeAuthSystem() {
 		    try {
+		        // Inicializar Google Sheets Service
 		        sheetsService.initialize(GOOGLE_SHEETS_API_KEY);
+		        console.log('Google Sheets Service inicializado');
 		        
+		        // Aguardar carregamento do email service com timeout maior
 		        let attempts = 0;
-		        const maxAttempts = 10;
+		        const maxAttempts = 20; // Aumentado de 10 para 20
+		        const delayMs = 200; // Aumentado de 100ms para 200ms
 		        
-		        // Aguardar carregamento do serviço de email
+		        console.log('Aguardando carregamento do BrevoEmailService...');
+		        
 		        while (!window.BrevoEmailService && attempts < maxAttempts) {
-		            await new Promise(resolve => setTimeout(resolve, 100));
+		            await new Promise(resolve => setTimeout(resolve, delayMs));
 		            attempts++;
+		            
+		            if (attempts % 5 === 0) {
+		                console.log(`Tentativa ${attempts}/${maxAttempts} - Aguardando BrevoEmailService...`);
+		            }
 		        }
 		        
-		        // CORREÇÃO: Usar window.BrevoEmailService consistentemente
+		        // Verificar se o email service foi carregado
 		        if (window.BrevoEmailService) {
-		            emailService = new window.BrevoEmailService();
-		            console.log('EmailService Brevo inicializado');
-		            
 		            try {
+		                emailService = new window.BrevoEmailService();
+		                console.log('EmailService Brevo inicializado com sucesso');
+		                
+		                // Testar configuração do email service
 		                const testResult = await emailService.testConfiguration();
-		                console.log('Teste Brevo:', testResult);
-		            } catch (testError) {
-		                console.warn('Aviso: Teste do email service falhou, mas continuando:', testError);
+		                
+		                if (testResult.success) {
+		                    console.log('Configuração Brevo validada:', testResult.message);
+		                    console.log('Endpoints:', testResult.endpoints);
+		                } else {
+		                    console.warn('Problema na configuração Brevo:', testResult.message);
+		                    console.warn('Endpoints:', testResult.endpoints);
+		                    // Não quebrar a aplicação, apenas avisar
+		                }
+		                
+		            } catch (emailError) {
+		                console.error('Erro ao inicializar ou testar EmailService:', emailError);
+		                emailService = null;
+		                // Continuar sem quebrar a aplicação
 		            }
 		        } else {
-		            console.error('BrevoEmailService não carregou após', maxAttempts * 100, 'ms');
-		            // NÃO fazer throw para não quebrar a aplicação
+		            console.error(`BrevoEmailService não carregou após ${maxAttempts * delayMs}ms (${maxAttempts} tentativas)`);
+		            console.error('Verifique se o arquivo email-service.js está sendo carregado corretamente');
 		            emailService = null;
+		            // NÃO fazer throw para não quebrar toda a aplicação
 		        }
 		        
-		        // CORREÇÃO: Chamar limpeza de sessões na inicialização
-		        await cleanExpiredSessions();
+		        // Limpar sessões expiradas na inicialização
+		        try {
+		            await cleanExpiredSessions();
+		            console.log('Limpeza de sessões expiradas concluída');
+		        } catch (sessionError) {
+		            console.error('Erro na limpeza de sessões:', sessionError);
+		            // Continuar mesmo com erro na limpeza
+		        }
+		        
+		        // Log final do status da inicialização
+		        console.log('=== Status da Inicialização ===');
+		        console.log('Google Sheets:', sheetsService ? 'OK' : 'ERRO');
+		        console.log('Email Service:', emailService ? 'OK' : 'INDISPONÍVEL');
+		        console.log('Supabase:', typeof supabase !== 'undefined' ? 'OK' : 'ERRO');
+		        console.log('===============================');
 		        
 		        console.log('Sistema de autenticação inicializado');
 		        
+		        // Retornar status para debug
+		        return {
+		            sheetsService: !!sheetsService,
+		            emailService: !!emailService,
+		            supabase: typeof supabase !== 'undefined'
+		        };
+		        
 		    } catch (error) {
-		        console.error('Erro na inicialização:', error);
+		        console.error('Erro crítico na inicialização do sistema:', error);
 		        emailService = null;
+		        
+		        // Mesmo com erro, não quebrar a aplicação
+		        // Apenas logar e continuar
+		        throw error; // Re-throw apenas se for erro crítico
 		    }
 		}
 
@@ -2642,11 +2678,6 @@
 
         // Validar CPF e enviar código
 		async function validateCPFAndSendCode() {
-		    if (!emailService) {
-		        showAuthError('cpfAuthError', 'Sistema temporariamente indisponível. Recarregue a página.');
-		        return;
-		    }
-		    
 		    const cpfInput = document.getElementById('cpfAuthInput').value.trim();
 		    const errorDiv = document.getElementById('cpfAuthError');
 		    const btn = event.target;
@@ -2667,30 +2698,29 @@
 		    
 		    btn.disabled = true;
 		    btn.innerHTML = '<span class="loading"></span>Verificando...';
-			console.log('🔄 Iniciando validação de CPF...');
-			console.log('📱 User Agent:', navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop');
 		    
 		    try {
 		        // PRIMEIRO: Verificar se já tem sessão ativa no servidor
+		        console.log('Verificando sessão existente para CPF:', cleanCPF.substring(0, 3) + '***');
 		        const existingSession = await checkExistingSession(cleanCPF);
 		        
 		        if (existingSession.hasActiveSession) {
-		            // Restaurar sessão existente sem pedir código
-		            await restoreServerSession(existingSession.sessionData, cleanCPF);
+		            console.log('Sessão ativa encontrada, restaurando...');
+		            const restored = await restoreServerSession(existingSession.sessionData, cleanCPF);
 		            
-		            showAuthStep(3); // Pular direto para sucesso
-		            
-		            setTimeout(() => {
-		                closeCPFAuthModal();
-		                if (pendingReportType) {
-		                    openPDFViewer(pendingReportType);
-		                }
-		            }, 2000);
-		            
-		            return;
+		            if (restored) {
+		                showAuthStep(3);
+		                setTimeout(() => {
+		                    closeCPFAuthModal();
+		                    if (pendingReportType) {
+		                        openPDFViewer(pendingReportType);
+		                    }
+		                }, 2000);
+		                return;
+		            }
 		        }
 		        
-		        // Se não tem sessão ativa, continuar com validação normal
+		        // Verificar status do assinante
 		        const status = await sheetsService.checkSubscriberStatus(cleanCPF);
 		        
 		        if (!status.found) {
@@ -2703,34 +2733,36 @@
 		            return;
 		        }
 		        
-		        if (!status.subscriber.email || !emailService || !emailService.isValidEmail(status.subscriber.email)) {
-		            showAuthError('cpfAuthError', 'Email não cadastrado. Entre em contato com o suporte.');
+		        // Verificar se email service está disponível
+		        if (!emailService) {
+		            console.error('EmailService não disponível');
+		            showAuthError('cpfAuthError', 'Sistema de email temporariamente indisponível. Tente novamente em alguns minutos.');
 		            return;
 		        }
-
-				// Gerar e enviar código apenas se não tem sessão ativa
-				const code = passwordService.generateTemporaryPassword(cleanCPF);
-				
-				// CORREÇÃO: Só enviar email se for um código novo
-				const isExistingCode = passwordService.hasActiveCode(cleanCPF);
-				let emailResult = { success: true };
-				
-				if (!isExistingCode) {
-				    console.log('Enviando novo código por email...');
-				    emailResult = await emailService.sendAccessCode(
-				        status.subscriber.email,
-				        code,
-				        status.subscriber.nome
-				    );
-				} else {
-				    console.log('Reutilizando código existente, não enviando novo email');
-				}
+		        
+		        if (!status.subscriber.email || !emailService.isValidEmail(status.subscriber.email)) {
+		            showAuthError('cpfAuthError', 'Email não cadastrado ou inválido. Entre em contato com o suporte.');
+		            return;
+		        }
+		
+		        // Gerar código
+		        const code = passwordService.generateTemporaryPassword(cleanCPF);
+		        console.log('Código gerado, enviando por email...');
+		        
+		        // Enviar código por email
+		        const emailResult = await emailService.sendAccessCode(
+		            status.subscriber.email,
+		            code,
+		            status.subscriber.nome
+		        );
 		        
 		        if (!emailResult.success) {
-		            showAuthError('cpfAuthError', 'Erro ao enviar email. Tente novamente.');
+		            console.error('Falha no envio do email:', emailResult.error);
+		            showAuthError('cpfAuthError', `Erro ao enviar email: ${emailResult.error}`);
 		            return;
 		        }
 		        
+		        console.log('Email enviado com sucesso');
 		        currentCPF = cleanCPF;
 		        currentSubscriber = status.subscriber;
 		        
@@ -2741,7 +2773,7 @@
 		        
 		    } catch (error) {
 		        console.error('Erro na validação do CPF:', error);
-		        showAuthError('cpfAuthError', 'Erro interno. Tente novamente.');
+		        showAuthError('cpfAuthError', `Erro interno: ${error.message}`);
 		    } finally {
 		        btn.disabled = false;
 		        btn.innerHTML = 'Continuar';
@@ -3008,6 +3040,7 @@
 </body>
 
 </html>
+
 
 
 
