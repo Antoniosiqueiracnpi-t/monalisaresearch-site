@@ -86,8 +86,8 @@ ${report.access_level === 'private' ? 'Este é um relatório exclusivo. Você pr
 
 ---
 Monalisa Research
-Análises Quantitativas Alimentadas por IA
-CNPJ: 59.932.253/0001-46 | Analista CNPI-T 7131
+Relatórios de Investimentos - Análises Quantitativas
+CNPJ: 59.932.253/0001-46
 Credenciada APIMEC Brasil
 
 Endereço:
@@ -233,8 +233,8 @@ Para cancelar o recebimento, responda este email solicitando descadastro.
                         Monalisa Research
                       </p>
                       <p style="color: #666666; font-size: 12px; margin: 0 0 15px 0; line-height: 1.6;">
-                        Análises Quantitativas Alimentadas por IA<br>
-                        CNPJ: 59.932.253/0001-46 | Analista CNPI-T 7131<br>
+                        Relatórios de Investimentos - Análises Quantitativas<br>
+                        CNPJ: 59.932.253/0001-46<br>
                         Credenciada APIMEC Brasil
                       </p>
                       
@@ -245,12 +245,12 @@ Para cancelar o recebimento, responda este email solicitando descadastro.
                         Jardim Analia Franco, São Paulo - SP, 03372-015
                       </p>
                       
-                      <div style="border-top: 1px solid #dee2e6; padding-top: 15px; margin-top: 15px;">
-                        <p style="color: #999999; font-size: 11px; margin: 0; line-height: 1.5;">
+                      <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 15px; margin-top: 15px;">
+                        <p style="color: rgba(255, 255, 255, 0.5); font-size: 11px; margin: 0; line-height: 1.5;">
                           © 2025 Monalisa Research. Todos os direitos reservados.<br>
                           Este email foi enviado para ${email}<br>
                           <a href="mailto:contato@monalisaresearch.com.br?subject=Descadastrar%20Notificacoes" 
-                             style="color: #666666; text-decoration: underline;">Descadastrar notificações</a>
+                             style="color: rgba(255, 255, 255, 0.6); text-decoration: underline;">Descadastrar notificações</a>
                         </p>
                       </div>
                       
@@ -302,13 +302,21 @@ Para cancelar o recebimento, responda este email solicitando descadastro.
     };
     
   } catch (error) {
-    console.error('Erro:', error);
+    console.error('Erro completo:', error);
+    console.error('Stack trace:', error.stack);
+    
+    // Se for erro de parsing JSON
+    if (error instanceof SyntaxError) {
+      console.error('Erro de JSON no body:', event.body);
+    }
+    
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: error.message,
+        details: error.stack
       })
     };
   }
