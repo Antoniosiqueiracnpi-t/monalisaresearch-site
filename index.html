@@ -2306,55 +2306,88 @@
             }
         }
 
-        // Password Service
-        class PasswordService {
-            constructor() {
-                this.activeCodes = new Map();
-                this.CODE_EXPIRY = 30 * 60 * 1000; // 30 minutos
-            }
-            
-            generateTemporaryPassword(cpf) {
-                const cleanCPF = cpf.replace(/\D/g, '');
-                const code = Math.floor(100000 + Math.random() * 900000).toString();
-                
-                this.activeCodes.set(cleanCPF, {
-                    code: code,
-                    timestamp: Date.now(),
-                    expires: Date.now() + this.CODE_EXPIRY
-                });
-                
-                this.cleanExpiredCodes();
-                return code;
-            }
-            
-            validateTemporaryPassword(cpf, code) {
-                const cleanCPF = cpf.replace(/\D/g, '');
-                const storedData = this.activeCodes.get(cleanCPF);
-                
-                if (!storedData) return false;
-                
-                if (Date.now() > storedData.expires) {
-                    this.activeCodes.delete(cleanCPF);
-                    return false;
-                }
-                
-                if (storedData.code === code) {
-                    this.activeCodes.delete(cleanCPF);
-                    return true;
-                }
-                
-                return false;
-            }
-            
-            cleanExpiredCodes() {
-                const now = Date.now();
-                for (const [cpf, data] of this.activeCodes.entries()) {
-                    if (now > data.expires) {
-                        this.activeCodes.delete(cpf);
-                    }
-                }
-            }
-        }
+		// Password Service
+		class PasswordService {
+		    constructor() {
+		        this.activeCodes = new Map();
+		        this.CODE_EXPIRY = 30 * 60 * 1000; // 30 minutos
+		    }
+		    
+		    generateTemporaryPassword(cpf) {
+		        const cleanCPF = cpf.replace(/\D/g, '');
+		        
+		        // CORREÇÃO: Verificar se já existe um código válido antes de gerar novo
+		        const existingCode = this.activeCodes.get(cleanCPF);
+		        if (existingCode && Date.now() < existingCode.expires) {
+		            console.log('Código ainda válido para CPF:', cleanCPF.substring(0, 3) + '***');
+		            console.log('Código expira em:', new Date(existingCode.expires));
+		            return existingCode.code; // Retornar o mesmo código
+		        }
+		        
+		        // Gerar novo código apenas se não existe ou expirou
+		        const code = Math.floor(100000 + Math.random() * 900000).toString();
+		        
+		        this.activeCodes.set(cleanCPF, {
+		            code: code,
+		            timestamp: Date.now(),
+		            expires: Date.now() + this.CODE_EXPIRY
+		        });
+		        
+		        console.log('Novo código gerado para CPF:', cleanCPF.substring(0, 3) + '***');
+		        console.log('Código expira em:', new Date(Date.now() + this.CODE_EXPIRY));
+		        
+		        this.cleanExpiredCodes();
+		        return code;
+		    }
+		    
+		    validateTemporaryPassword(cpf, code) {
+		        const cleanCPF = cpf.replace(/\D/g, '');
+		        const storedData = this.activeCodes.get(cleanCPF);
+		        
+		        if (!storedData) {
+		            console.log('Nenhum código encontrado para CPF:', cleanCPF.substring(0, 3) + '***');
+		            return false;
+		        }
+		        
+		        if (Date.now() > storedData.expires) {
+		            console.log('Código expirado para CPF:', cleanCPF.substring(0, 3) + '***');
+		            this.activeCodes.delete(cleanCPF);
+		            return false;
+		        }
+		        
+		        if (storedData.code === code) {
+		            console.log('Código válido para CPF:', cleanCPF.substring(0, 3) + '***');
+		            this.activeCodes.delete(cleanCPF);
+		            return true;
+		        }
+		        
+		        console.log('Código incorreto para CPF:', cleanCPF.substring(0, 3) + '***');
+		        return false;
+		    }
+		    
+		    cleanExpiredCodes() {
+		        const now = Date.now();
+		        let removedCount = 0;
+		        
+		        for (const [cpf, data] of this.activeCodes.entries()) {
+		            if (now > data.expires) {
+		                this.activeCodes.delete(cpf);
+		                removedCount++;
+		            }
+		        }
+		        
+		        if (removedCount > 0) {
+		            console.log('Códigos expirados removidos:', removedCount);
+		        }
+		    }
+		    
+		    // Nova função para debug
+		    hasActiveCode(cpf) {
+		        const cleanCPF = cpf.replace(/\D/g, '');
+		        const storedData = this.activeCodes.get(cleanCPF);
+		        return storedData && Date.now() < storedData.expires;
+		    }
+		}
 
         // Email Service
 	// Email service será carregado do arquivo email-service.js
@@ -2674,14 +2707,24 @@
 		            showAuthError('cpfAuthError', 'Email não cadastrado. Entre em contato com o suporte.');
 		            return;
 		        }
-		        
-		        // Gerar e enviar código apenas se não tem sessão ativa
-		        const code = passwordService.generateTemporaryPassword(cleanCPF);
-		        const emailResult = await emailService.sendAccessCode(
-		            status.subscriber.email,
-		            code,
-		            status.subscriber.nome
-		        );
+
+				// Gerar e enviar código apenas se não tem sessão ativa
+				const code = passwordService.generateTemporaryPassword(cleanCPF);
+				
+				// CORREÇÃO: Só enviar email se for um código novo
+				const isExistingCode = passwordService.hasActiveCode(cleanCPF);
+				let emailResult = { success: true };
+				
+				if (!isExistingCode) {
+				    console.log('Enviando novo código por email...');
+				    emailResult = await emailService.sendAccessCode(
+				        status.subscriber.email,
+				        code,
+				        status.subscriber.nome
+				    );
+				} else {
+				    console.log('Reutilizando código existente, não enviando novo email');
+				}
 		        
 		        if (!emailResult.success) {
 		            showAuthError('cpfAuthError', 'Erro ao enviar email. Tente novamente.');
@@ -2965,6 +3008,7 @@
 </body>
 
 </html>
+
 
 
 
