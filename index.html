@@ -1589,87 +1589,92 @@
                 highlightSection.style.display = 'none';
             }
         }
-        
-        // Extrair posições dos dados JSON
-        // Extrair posições dos dados JSON
-        function extractPositionsFromJson(data, strategy) {
-            let positions = [];
-            
-            try {
-                if (strategy === 'quant') {
-                    // Monalisa Quant - formato array simples
-                    if (Array.isArray(data)) {
-                        positions = data.map(pos => ({
-                            strategy: 'Monalisa Quant',
-                            strategyType: 'quant',
-                            symbol: pos.codigo,
-                            returnPercent: pos.variacao_pct,
-                            entryPrice: pos.preco_entrada,
-                            currentPrice: pos.ultimo_preco,
-                            entryDate: pos.data_entrada,
-                            takeProfit: pos.take_profit,
-                            stopLoss: pos.stop_loss,
-                            status: pos.status,
-                            daysOpen: calculateDaysOpen(pos.data_entrada)
-                        }));
-                    }
-                }
-                else if (strategy === 'opcoes') {
-                    // Monalisa Opções - formato complexo
-                    if (data.posicoes_por_ativo) {
-                        Object.entries(data.posicoes_por_ativo).forEach(([ativo, info]) => {
-                            info.estrategias.forEach(est => {
-                                positions.push({
-                                    strategy: 'Monalisa Opções',
-                                    strategyType: 'opcoes',
-                                    symbol: ativo,
-                                    returnPercent: est.rentabilidade_percentual,
-                                    returnAbsolute: est.rentabilidade_absoluta,
-                                    investment: est.investimento_entrada,
-                                    currentValue: est.valor_atual,
-                                    strategyName: est.nome_estrategia,
-                                    expiration: est.vencimento,
-                                    daysToExpiry: est.dias_ate_vencimento,
-                                    breakevens: est.breakevens,
-                                    spotPrice: info.preco_spot_atual,
-                                    daysOpen: calculateDaysOpen(est.data_abertura.split('T')[0])
-                                });
-                            });
-                        });
-                    }
-                }
-                else if (strategy === 'longshort') {
-                    // Monalisa Long/Short - formato pairs
-                    if (data.active_positions && Array.isArray(data.active_positions)) {
-                        positions = data.active_positions.map(pos => {
-                            const returnCalc = calculatePairReturn(pos);
-                            return {
-                                strategy: 'Long/Short',
-                                strategyType: 'longshort',
-                                symbol: pos.pair,
-                                tickerA: pos.ticker_a,
-                                tickerB: pos.ticker_b,
-                                signalType: pos.signal_type,
-                                zscore: pos.current_zscore,
-                                entryRatio: pos.entry_ratio,
-                                currentRatio: pos.price_a / pos.price_b,
-                                targetRatio: pos.target_ratio,
-                                qualityScore: pos.quality_score,
-                                returnPercent: returnCalc.percent,
-                                hedgeRatio: pos.hedge_ratio,
-                                entryDate: pos.entry_date,
-                                daysOpen: calculateDaysOpen(pos.entry_date),
-                                operations: pos.operations
-                            };
-                        });
-                    }
-                }
-            } catch (error) {
-                console.error(`Erro ao processar dados de ${strategy}:`, error);
-            }
-            
-            return positions;
-        }
+
+		// Extrair posições dos dados JSON
+		function extractPositionsFromJson(data, strategy) {
+		    let positions = [];
+		    
+		    try {
+		        if (strategy === 'quant') {
+		            // Monalisa Quant - formato array simples
+		            if (Array.isArray(data)) {
+		                positions = data.map(pos => ({
+		                    strategy: 'Monalisa Quant',
+		                    strategyType: 'quant',
+		                    symbol: pos.codigo,
+		                    returnPercent: pos.variacao_pct,
+		                    entryPrice: pos.preco_entrada,
+		                    currentPrice: pos.ultimo_preco,
+		                    entryDate: pos.data_entrada,
+		                    takeProfit: pos.take_profit,
+		                    stopLoss: pos.stop_loss,
+		                    status: pos.status,
+		                    daysOpen: calculateDaysOpen(pos.data_entrada),
+		                    startDate: pos.data_entrada,
+		                    analysisDate: data.metadata?.data_atualizacao?.split('T')[0] || new Date().toISOString().split('T')[0]
+		                }));
+		            }
+		        }
+		        else if (strategy === 'opcoes') {
+		            // Monalisa Opções - formato complexo
+		            if (data.posicoes_por_ativo) {
+		                Object.entries(data.posicoes_por_ativo).forEach(([ativo, info]) => {
+		                    info.estrategias.forEach(est => {
+		                        positions.push({
+		                            strategy: 'Monalisa Opções',
+		                            strategyType: 'opcoes',
+		                            symbol: ativo,
+		                            returnPercent: est.rentabilidade_percentual,
+		                            returnAbsolute: est.rentabilidade_absoluta,
+		                            investment: est.investimento_entrada,
+		                            currentValue: est.valor_atual,
+		                            strategyName: est.nome_estrategia,
+		                            expiration: est.vencimento,
+		                            daysToExpiry: est.dias_ate_vencimento,
+		                            breakevens: est.breakevens,
+		                            spotPrice: info.preco_spot_atual,
+		                            daysOpen: calculateDaysOpen(est.data_abertura.split('T')[0]),
+		                            startDate: est.data_abertura.split('T')[0],
+		                            analysisDate: data.metadata?.data_atualizacao?.split('T')[0] || new Date().toISOString().split('T')[0]
+		                        });
+		                    });
+		                });
+		            }
+		        }
+		        else if (strategy === 'longshort') {
+		            // Monalisa Long/Short - formato pairs
+		            if (data.active_positions && Array.isArray(data.active_positions)) {
+		                positions = data.active_positions.map(pos => {
+		                    const returnCalc = calculatePairReturn(pos);
+		                    return {
+		                        strategy: 'Long/Short',
+		                        strategyType: 'longshort',
+		                        symbol: pos.pair,
+		                        tickerA: pos.ticker_a,
+		                        tickerB: pos.ticker_b,
+		                        signalType: pos.signal_type,
+		                        zscore: pos.current_zscore,
+		                        entryRatio: pos.entry_ratio,
+		                        currentRatio: pos.price_a / pos.price_b,
+		                        targetRatio: pos.target_ratio,
+		                        qualityScore: pos.quality_score,
+		                        returnPercent: returnCalc.percent,
+		                        hedgeRatio: pos.hedge_ratio,
+		                        entryDate: pos.entry_date,
+		                        daysOpen: calculateDaysOpen(pos.entry_date),
+		                        operations: pos.operations,
+		                        startDate: pos.entry_date,
+		                        analysisDate: data.metadata?.data_atualizacao?.split('T')[0] || new Date().toISOString().split('T')[0]
+		                    };
+		                });
+		            }
+		        }
+		    } catch (error) {
+		        console.error(`Erro ao processar dados de ${strategy}:`, error);
+		    }
+		    
+		    return positions;
+		}
         
         // Calcular dias em aberto
         function calculateDaysOpen(entryDate) {
@@ -1753,91 +1758,147 @@
             positionsContainer.innerHTML = topPositions.map(pos => createPositionCard(pos)).join('');
             highlightSection.style.display = 'block';
         }
-        
-        // Criar card de posição
-        // Criar card de posição
-        function createPositionCard(position) {
-            const returnClass = position.returnPercent > 0 ? 'positive' : 'negative';
-            const progressWidth = Math.min(Math.abs(position.returnPercent || 0), 100);
-            
-            // Para Long/Short, remover .SA dos tickers
-            let displaySymbol = position.symbol;
-            if (position.strategyType === 'longshort' && position.symbol) {
-                displaySymbol = position.symbol.replace(/\.SA/g, '');
-            }
-            
-            let detailsSection = '';
-            
-            if (position.strategyType === 'quant') {
-                detailsSection = `
-                    <div class="position-details">
-                        <div class="detail-item">
-                            <div class="detail-label">Entrada</div>
-                            <div class="detail-value">R$ ${position.entryPrice.toFixed(2)}</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Atual</div>
-                            <div class="detail-value">R$ ${position.currentPrice.toFixed(2)}</div>
-                        </div>
-                    </div>
-                `;
-            } else if (position.strategyType === 'opcoes') {
-                detailsSection = `
-                    <div class="position-details">
-                        <div class="detail-item">
-                            <div class="detail-label">Investimento</div>
-                            <div class="detail-value">R$ ${position.investment.toLocaleString('pt-BR')}</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Valor Atual</div>
-                            <div class="detail-value">R$ ${position.currentValue.toLocaleString('pt-BR')}</div>
-                        </div>
-                    </div>
-                `;
-            } else if (position.strategyType === 'longshort') {
-                detailsSection = `
-                    <div class="position-details">
-                        <div class="detail-item">
-                            <div class="detail-label">Z-Score</div>
-                            <div class="detail-value">${position.zscore.toFixed(2)}</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Qualidade</div>
-                            <div class="detail-value">${position.qualityScore}%</div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            return `
-                <div class="position-card ${position.strategyType}">
-                    <div class="position-header">
-                        <div>
-                            <div class="position-strategy">${position.strategy}</div>
-                            <div class="position-symbol">${displaySymbol}</div>
-                        </div>
-                        <div class="position-return">
-                            <div class="return-value ${returnClass}">
-                                ${position.returnPercent > 0 ? '+' : ''}${position.returnPercent.toFixed(2)}%
-                            </div>
-                            <div class="return-label">Retorno</div>
-                        </div>
-                    </div>
-                    
-                    ${detailsSection}
-                    
-                    <div class="position-progress">
-                        <div class="progress-label">
-                            <span>Performance</span>
-                            <span>${position.daysOpen} dias</span>
-                        </div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar-fill" style="width: ${progressWidth}%"></div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
+
+		// Criar card de posição
+		function createPositionCard(position) {
+		    const returnClass = position.returnPercent > 0 ? 'positive' : 'negative';
+		    const progressWidth = Math.min(Math.abs(position.returnPercent || 0), 100);
+		    
+		    // Para Long/Short, remover .SA dos tickers
+		    let displaySymbol = position.symbol;
+		    if (position.strategyType === 'longshort' && position.symbol) {
+		        displaySymbol = position.symbol.replace(/\.SA/g, '');
+		    }
+		    
+		    // Função para formatar período da operação
+		    function formatDatePeriod(startDate, analysisDate) {
+		        if (!startDate) return 'N/A';
+		        
+		        try {
+		            const start = new Date(startDate);
+		            const analysis = analysisDate ? new Date(analysisDate) : new Date();
+		            
+		            const formatDate = (date) => {
+		                if (isNaN(date.getTime())) return 'N/A';
+		                return date.toLocaleDateString('pt-BR', {
+		                    day: '2-digit',
+		                    month: '2-digit',
+		                    year: '2-digit'
+		                });
+		            };
+		            
+		            return `${formatDate(start)} - ${formatDate(analysis)}`;
+		        } catch (error) {
+		            console.error('Erro ao formatar datas:', error);
+		            return 'N/A';
+		        }
+		    }
+		    
+		    let detailsSection = '';
+		    
+		    if (position.strategyType === 'quant') {
+		        detailsSection = `
+		            <div class="position-details">
+		                <div class="detail-item">
+		                    <div class="detail-label">Entrada</div>
+		                    <div class="detail-value">R$ ${position.entryPrice.toFixed(2)}</div>
+		                </div>
+		                <div class="detail-item">
+		                    <div class="detail-label">Atual</div>
+		                    <div class="detail-value">R$ ${position.currentPrice.toFixed(2)}</div>
+		                </div>
+		            </div>
+		            <div class="position-details">
+		                <div class="detail-item" style="grid-column: 1 / -1; text-align: center; padding-top: 0.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+		                    <div class="detail-label">Período da Operação</div>
+		                    <div class="detail-value" style="font-size: 0.85rem; color: rgba(255, 255, 255, 0.8);">
+		                        ${formatDatePeriod(position.startDate, position.analysisDate)}
+		                    </div>
+		                </div>
+		            </div>
+		        `;
+		    } else if (position.strategyType === 'opcoes') {
+		        detailsSection = `
+		            <div class="position-details">
+		                <div class="detail-item">
+		                    <div class="detail-label">Investimento</div>
+		                    <div class="detail-value">R$ ${position.investment.toLocaleString('pt-BR')}</div>
+		                </div>
+		                <div class="detail-item">
+		                    <div class="detail-label">Valor Atual</div>
+		                    <div class="detail-value">R$ ${position.currentValue.toLocaleString('pt-BR')}</div>
+		                </div>
+		            </div>
+		            <div class="position-details">
+		                <div class="detail-item" style="grid-column: 1 / -1; text-align: center; padding-top: 0.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+		                    <div class="detail-label">Período da Operação</div>
+		                    <div class="detail-value" style="font-size: 0.85rem; color: rgba(255, 255, 255, 0.8);">
+		                        ${formatDatePeriod(position.startDate, position.analysisDate)}
+		                    </div>
+		                </div>
+		            </div>
+		            ${position.strategyName ? `
+		            <div class="position-details" style="margin-top: 0.5rem;">
+		                <div class="detail-item" style="grid-column: 1 / -1; text-align: center;">
+		                    <div class="detail-label">Estratégia</div>
+		                    <div class="detail-value" style="font-size: 0.8rem; color: rgba(255, 255, 255, 0.7);">
+		                        ${position.strategyName}
+		                    </div>
+		                </div>
+		            </div>` : ''}
+		        `;
+		    } else if (position.strategyType === 'longshort') {
+		        detailsSection = `
+		            <div class="position-details">
+		                <div class="detail-item">
+		                    <div class="detail-label">Z-Score</div>
+		                    <div class="detail-value">${position.zscore.toFixed(2)}</div>
+		                </div>
+		                <div class="detail-item">
+		                    <div class="detail-label">Qualidade</div>
+		                    <div class="detail-value">${position.qualityScore}%</div>
+		                </div>
+		            </div>
+		            <div class="position-details">
+		                <div class="detail-item" style="grid-column: 1 / -1; text-align: center; padding-top: 0.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+		                    <div class="detail-label">Período da Operação</div>
+		                    <div class="detail-value" style="font-size: 0.85rem; color: rgba(255, 255, 255, 0.8);">
+		                        ${formatDatePeriod(position.startDate, position.analysisDate)}
+		                    </div>
+		                </div>
+		            </div>
+		        `;
+		    }
+		    
+		    return `
+		        <div class="position-card ${position.strategyType}">
+		            <div class="position-header">
+		                <div>
+		                    <div class="position-strategy">${position.strategy}</div>
+		                    <div class="position-symbol">${displaySymbol}</div>
+		                </div>
+		                <div class="position-return">
+		                    <div class="return-value ${returnClass}">
+		                        ${position.returnPercent > 0 ? '+' : ''}${position.returnPercent.toFixed(2)}%
+		                    </div>
+		                    <div class="return-label">Retorno</div>
+		                </div>
+		            </div>
+		            
+		            ${detailsSection}
+		            
+		            <div class="position-progress">
+		                <div class="progress-label">
+		                    <span>Performance</span>
+		                    <span>${position.daysOpen} dias</span>
+		                </div>
+		                <div class="progress-bar-container">
+		                    <div class="progress-bar-fill" style="width: ${progressWidth}%"></div>
+		                </div>
+		            </div>
+		        </div>
+		    `;
+		}
         
        
         // Buscar todos os relatórios do Supabase
@@ -2701,3 +2762,4 @@
 </body>
 
 </html>
+
