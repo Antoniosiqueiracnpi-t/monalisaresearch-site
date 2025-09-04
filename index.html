@@ -2389,9 +2389,11 @@
 		    const now = Date.now();
 		    return now < sessionData.expiresAt && (now - sessionData.timestamp) < (2 * 60 * 60 * 1000);
 		}
-		
+
 		// Verificar sessão existente no servidor
 		async function checkExistingSession(cpf) {
+		    console.log('🔍 Verificando sessão existente para CPF:', cpf.substring(0, 3) + '***'); // Debug
+		    
 		    try {
 		        const { data, error } = await supabase
 		            .from('user_sessions')
@@ -2399,19 +2401,30 @@
 		            .eq('cpf', cpf)
 		            .single();
 		        
-		        if (error || !data) {
+		        if (error) {
+		            console.log('❌ Erro ao buscar sessão:', error.message);
+		            return { hasActiveSession: false };
+		        }
+		        
+		        if (!data) {
+		            console.log('ℹ️ Nenhuma sessão encontrada no servidor');
 		            return { hasActiveSession: false };
 		        }
 		        
 		        const serverExpiresAt = new Date(data.expires_at).getTime();
 		        const now = Date.now();
 		        
+		        console.log('⏰ Sessão no servidor expira em:', new Date(data.expires_at));
+		        console.log('⏰ Horário atual:', new Date(now));
+		        
 		        if (now < serverExpiresAt) {
+		            console.log('✅ Sessão válida encontrada no servidor');
 		            return { 
 		                hasActiveSession: true, 
 		                sessionData: data 
 		            };
 		        } else {
+		            console.log('⚠️ Sessão expirada, removendo do servidor');
 		            // Limpar sessão expirada
 		            await supabase
 		                .from('user_sessions')
@@ -2479,29 +2492,39 @@
 		        let attempts = 0;
 		        const maxAttempts = 10;
 		        
+		        // Aguardar carregamento do serviço de email
 		        while (!window.BrevoEmailService && attempts < maxAttempts) {
 		            await new Promise(resolve => setTimeout(resolve, 100));
 		            attempts++;
 		        }
 		        
-		        if (typeof BrevoEmailService !== 'undefined') {
-		            emailService = new BrevoEmailService();
+		        // CORREÇÃO: Usar window.BrevoEmailService consistentemente
+		        if (window.BrevoEmailService) {
+		            emailService = new window.BrevoEmailService();
 		            console.log('EmailService Brevo inicializado');
 		            
-		            const testResult = await emailService.testConfiguration();
-		            console.log('Teste Brevo:', testResult);
-                } else {
-                    console.error('RDStationEmailService não carregou após', maxAttempts * 100, 'ms');
-                    throw new Error('EmailService indisponível');
-                }
-                
-                console.log('Sistema de autenticação inicializado');
-            } catch (error) {
-                console.error('Erro na inicialização:', error);
-                // ✅ Não fazer throw para não quebrar toda a aplicação
-                emailService = null;
-            }
-        }
+		            try {
+		                const testResult = await emailService.testConfiguration();
+		                console.log('Teste Brevo:', testResult);
+		            } catch (testError) {
+		                console.warn('Aviso: Teste do email service falhou, mas continuando:', testError);
+		            }
+		        } else {
+		            console.error('BrevoEmailService não carregou após', maxAttempts * 100, 'ms');
+		            // NÃO fazer throw para não quebrar a aplicação
+		            emailService = null;
+		        }
+		        
+		        // CORREÇÃO: Chamar limpeza de sessões na inicialização
+		        await cleanExpiredSessions();
+		        
+		        console.log('Sistema de autenticação inicializado');
+		        
+		    } catch (error) {
+		        console.error('Erro na inicialização:', error);
+		        emailService = null;
+		    }
+		}
 
         // SUBSTITUIR A FUNÇÃO viewStrategy ATUAL POR ESTA:
 		async function checkReportAccess(type) {
@@ -2611,6 +2634,8 @@
 		    
 		    btn.disabled = true;
 		    btn.innerHTML = '<span class="loading"></span>Verificando...';
+			console.log('🔄 Iniciando validação de CPF...');
+			console.log('📱 User Agent:', navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop');
 		    
 		    try {
 		        // PRIMEIRO: Verificar se já tem sessão ativa no servidor
@@ -2940,5 +2965,6 @@
 </body>
 
 </html>
+
 
 
