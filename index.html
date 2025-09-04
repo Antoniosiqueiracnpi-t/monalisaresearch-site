@@ -2364,6 +2364,113 @@
         const passwordService = new PasswordService();
 	let emailService = null;
 
+		// ===== FUNÇÕES AUXILIARES PARA SESSÕES COMPARTILHADAS =====
+
+		// Gerar token único para sessão
+		function generateSessionToken() {
+		    return 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+		}
+		
+		// Obter sessão local
+		function getLocalSession() {
+		    const session = localStorage.getItem('cpfAuthSession');
+		    if (!session) return null;
+		    
+		    try {
+		        return JSON.parse(session);
+		    } catch {
+		        localStorage.removeItem('cpfAuthSession');
+		        return null;
+		    }
+		}
+		
+		// Verificar se sessão local é válida
+		function isLocalSessionValid(sessionData) {
+		    const now = Date.now();
+		    return now < sessionData.expiresAt && (now - sessionData.timestamp) < (2 * 60 * 60 * 1000);
+		}
+		
+		// Verificar sessão existente no servidor
+		async function checkExistingSession(cpf) {
+		    try {
+		        const { data, error } = await supabase
+		            .from('user_sessions')
+		            .select('*')
+		            .eq('cpf', cpf)
+		            .single();
+		        
+		        if (error || !data) {
+		            return { hasActiveSession: false };
+		        }
+		        
+		        const serverExpiresAt = new Date(data.expires_at).getTime();
+		        const now = Date.now();
+		        
+		        if (now < serverExpiresAt) {
+		            return { 
+		                hasActiveSession: true, 
+		                sessionData: data 
+		            };
+		        } else {
+		            // Limpar sessão expirada
+		            await supabase
+		                .from('user_sessions')
+		                .delete()
+		                .eq('cpf', cpf);
+		            
+		            return { hasActiveSession: false };
+		        }
+		        
+		    } catch (error) {
+		        console.error('Erro ao verificar sessão existente:', error);
+		        return { hasActiveSession: false };
+		    }
+		}
+		
+		// Restaurar sessão do servidor
+		async function restoreServerSession(serverData, cpf) {
+		    try {
+		        const sessionData = {
+		            cpf: cpf,
+		            name: serverData.subscriber_data.name,
+		            email: serverData.subscriber_data.email,
+		            timestamp: new Date(serverData.created_at).getTime(),
+		            expiresAt: new Date(serverData.expires_at).getTime(),
+		            sessionToken: serverData.session_token
+		        };
+		        
+		        // Salvar no localStorage
+		        localStorage.setItem('cpfAuthSession', JSON.stringify(sessionData));
+		        
+		        // Atualizar last_accessed no servidor
+		        await supabase
+		            .from('user_sessions')
+		            .update({ last_accessed: new Date().toISOString() })
+		            .eq('cpf', cpf);
+		        
+		        console.log('Sessão restaurada do servidor com sucesso');
+		        return true;
+		        
+		    } catch (error) {
+		        console.error('Erro ao restaurar sessão:', error);
+		        return false;
+		    }
+		}
+		
+		// Limpar sessão expirada
+		async function cleanExpiredSession(cpf) {
+		    try {
+		        await supabase
+		            .from('user_sessions')
+		            .delete()
+		            .eq('cpf', cpf);
+		        
+		        localStorage.removeItem('cpfAuthSession');
+		    } catch (error) {
+		        console.error('Erro ao limpar sessão expirada:', error);
+		    }
+		}
+
 
 		async function initializeAuthSystem() {
 		    try {
@@ -2397,30 +2504,31 @@
         }
 
         // SUBSTITUIR A FUNÇÃO viewStrategy ATUAL POR ESTA:
-        async function checkReportAccess(type) {
-            const report = availableReports[type];
-            
-            if (!report) {
-                alert('Relatório não disponível');
-                return;
-            }
-            
-            // Se for público, abrir direto
-            if (report.access_level !== 'private') {
-                openPDFViewer(type);
-                return;
-            }
-            
-            // Se for privado, verificar sessão
-            if (hasActiveSession()) {
-                openPDFViewer(type);
-                return;
-            }
-            
-            // Mostrar modal de CPF
-            pendingReportType = type;
-            showCPFAuthModal();
-        }
+		async function checkReportAccess(type) {
+		    const report = availableReports[type];
+		    
+		    if (!report) {
+		        alert('Relatório não disponível');
+		        return;
+		    }
+		    
+		    // Se for público, abrir direto
+		    if (report.access_level !== 'private') {
+		        openPDFViewer(type);
+		        return;
+		    }
+		    
+		    // Se for privado, verificar se tem sessão ativa LOCAL
+		    const localSession = getLocalSession();
+		    if (localSession && isLocalSessionValid(localSession)) {
+		        openPDFViewer(type);
+		        return;
+		    }
+		    
+		    // Se não tem sessão local válida, pedir CPF
+		    pendingReportType = type;
+		    showCPFAuthModal();
+		}
 
         // Verificar sessão ativa
         function hasActiveSession() {
@@ -2477,78 +2585,100 @@
         }
 
         // Validar CPF e enviar código
-        async function validateCPFAndSendCode() {
-            if (!emailService) {
-                showAuthError('cpfAuthError', 'Sistema temporariamente indisponível. Recarregue a página.');
-                return;
-            }
-            const cpfInput = document.getElementById('cpfAuthInput').value.trim();
-            const errorDiv = document.getElementById('cpfAuthError');
-            const btn = event.target;
-            
-            errorDiv.style.display = 'none';
-            
-            if (!cpfInput) {
-                showAuthError('cpfAuthError', 'Por favor, digite seu CPF.');
-                return;
-            }
-            
-            const cleanCPF = cpfInput.replace(/\D/g, '');
-            
-            if (!GoogleSheetsService.validateCPF(cleanCPF)) {
-                showAuthError('cpfAuthError', 'CPF inválido. Verifique o formato.');
-                return;
-            }
-            
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span>Verificando...';
-            
-            try {
-                const status = await sheetsService.checkSubscriberStatus(cleanCPF);
-                
-                if (!status.found) {
-                    showAuthError('cpfAuthError', 'CPF não encontrado na base de assinantes.');
-                    return;
-                }
-                
-                if (!status.active) {
-                    showAuthError('cpfAuthError', status.message);
-                    return;
-                }
-                
-                if (!status.subscriber.email || !emailService || !emailService.isValidEmail(status.subscriber.email)) {
-                    showAuthError('cpfAuthError', 'Email não cadastrado. Entre em contato com o suporte.');
-                    return;
-                }
-                
-                const code = passwordService.generateTemporaryPassword(cleanCPF);
-                const emailResult = await emailService.sendAccessCode(
-                    status.subscriber.email,
-                    code,
-                    status.subscriber.nome
-                );
-                
-                if (!emailResult.success) {
-                    showAuthError('cpfAuthError', 'Erro ao enviar email. Tente novamente.');
-                    return;
-                }
-                
-                currentCPF = cleanCPF;
-                currentSubscriber = status.subscriber;
-                
-                const maskedEmail = maskEmail(status.subscriber.email);
-                document.getElementById('maskedEmail').textContent = maskedEmail;
-                
-                showAuthStep(2);
-                
-            } catch (error) {
-                console.error('Erro na validação do CPF:', error);
-                showAuthError('cpfAuthError', 'Erro interno. Tente novamente.');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'Continuar';
-            }
-        }
+		async function validateCPFAndSendCode() {
+		    if (!emailService) {
+		        showAuthError('cpfAuthError', 'Sistema temporariamente indisponível. Recarregue a página.');
+		        return;
+		    }
+		    
+		    const cpfInput = document.getElementById('cpfAuthInput').value.trim();
+		    const errorDiv = document.getElementById('cpfAuthError');
+		    const btn = event.target;
+		    
+		    errorDiv.style.display = 'none';
+		    
+		    if (!cpfInput) {
+		        showAuthError('cpfAuthError', 'Por favor, digite seu CPF.');
+		        return;
+		    }
+		    
+		    const cleanCPF = cpfInput.replace(/\D/g, '');
+		    
+		    if (!GoogleSheetsService.validateCPF(cleanCPF)) {
+		        showAuthError('cpfAuthError', 'CPF inválido. Verifique o formato.');
+		        return;
+		    }
+		    
+		    btn.disabled = true;
+		    btn.innerHTML = '<span class="loading"></span>Verificando...';
+		    
+		    try {
+		        // PRIMEIRO: Verificar se já tem sessão ativa no servidor
+		        const existingSession = await checkExistingSession(cleanCPF);
+		        
+		        if (existingSession.hasActiveSession) {
+		            // Restaurar sessão existente sem pedir código
+		            await restoreServerSession(existingSession.sessionData, cleanCPF);
+		            
+		            showAuthStep(3); // Pular direto para sucesso
+		            
+		            setTimeout(() => {
+		                closeCPFAuthModal();
+		                if (pendingReportType) {
+		                    openPDFViewer(pendingReportType);
+		                }
+		            }, 2000);
+		            
+		            return;
+		        }
+		        
+		        // Se não tem sessão ativa, continuar com validação normal
+		        const status = await sheetsService.checkSubscriberStatus(cleanCPF);
+		        
+		        if (!status.found) {
+		            showAuthError('cpfAuthError', 'CPF não encontrado na base de assinantes.');
+		            return;
+		        }
+		        
+		        if (!status.active) {
+		            showAuthError('cpfAuthError', status.message);
+		            return;
+		        }
+		        
+		        if (!status.subscriber.email || !emailService || !emailService.isValidEmail(status.subscriber.email)) {
+		            showAuthError('cpfAuthError', 'Email não cadastrado. Entre em contato com o suporte.');
+		            return;
+		        }
+		        
+		        // Gerar e enviar código apenas se não tem sessão ativa
+		        const code = passwordService.generateTemporaryPassword(cleanCPF);
+		        const emailResult = await emailService.sendAccessCode(
+		            status.subscriber.email,
+		            code,
+		            status.subscriber.nome
+		        );
+		        
+		        if (!emailResult.success) {
+		            showAuthError('cpfAuthError', 'Erro ao enviar email. Tente novamente.');
+		            return;
+		        }
+		        
+		        currentCPF = cleanCPF;
+		        currentSubscriber = status.subscriber;
+		        
+		        const maskedEmail = maskEmail(status.subscriber.email);
+		        document.getElementById('maskedEmail').textContent = maskedEmail;
+		        
+		        showAuthStep(2);
+		        
+		    } catch (error) {
+		        console.error('Erro na validação do CPF:', error);
+		        showAuthError('cpfAuthError', 'Erro interno. Tente novamente.');
+		    } finally {
+		        btn.disabled = false;
+		        btn.innerHTML = 'Continuar';
+		    }
+		}
 
         // Validar código do email
         async function validateEmailCode() {
@@ -2594,37 +2724,85 @@
         }
 
         // Funções auxiliares
-        function createAuthSession() {
-            const sessionData = {
-                cpf: currentCPF,
-                name: currentSubscriber.nome,
-                timestamp: Date.now(),
-                expiresAt: Date.now() + (2 * 60 * 60 * 1000) // 2 horas
-            };
-            
-            localStorage.setItem('cpfAuthSession', JSON.stringify(sessionData)); // MUDANÇA AQUI
-        }
+		async function createAuthSession() {
+		    const sessionToken = generateSessionToken();
+		    const expiresAt = new Date(Date.now() + (2 * 60 * 60 * 1000)); // 2 horas
+		    
+		    const sessionData = {
+		        cpf: currentCPF,
+		        name: currentSubscriber.nome,
+		        email: currentSubscriber.email,
+		        timestamp: Date.now(),
+		        expiresAt: expiresAt.getTime(),
+		        sessionToken: sessionToken
+		    };
+		    
+		    try {
+		        // Salvar sessão no Supabase para compartilhar entre dispositivos
+		        const { data, error } = await supabase
+		            .from('user_sessions')
+		            .upsert({
+		                cpf: currentCPF,
+		                session_token: sessionToken,
+		                subscriber_data: {
+		                    name: currentSubscriber.nome,
+		                    email: currentSubscriber.email,
+		                    cpf: currentCPF
+		                },
+		                expires_at: expiresAt.toISOString(),
+		                last_accessed: new Date().toISOString()
+		            }, {
+		                onConflict: 'cpf'
+		            });
+		        
+		        if (error) {
+		            console.error('Erro ao salvar sessão no Supabase:', error);
+		        } else {
+		            console.log('Sessão salva no Supabase com sucesso');
+		        }
+		        
+		        // Também salvar no localStorage como cache
+		        localStorage.setItem('cpfAuthSession', JSON.stringify(sessionData));
+		        
+		        return true;
+		    } catch (error) {
+		        console.error('Erro ao criar sessão compartilhada:', error);
+		        // Fallback: apenas localStorage
+		        localStorage.setItem('cpfAuthSession', JSON.stringify(sessionData));
+		        return false;
+		    }
+		}
 
         // 3. Função para verificar e limpar sessões expiradas na inicialização
-        function cleanExpiredSessions() {
-            const session = localStorage.getItem('cpfAuthSession');
-            if (session) {
-                try {
-                    const data = JSON.parse(session);
-                    const now = Date.now();
-                    
-                    // Se expirou, remove
-                    if (now > data.expiresAt || now - data.timestamp > 2 * 60 * 60 * 1000) {
-                        localStorage.removeItem('cpfAuthSession');
-                        console.log('Sessão expirada removida');
-                    } else {
-                        console.log('Sessão válida encontrada, válida até:', new Date(data.expiresAt));
-                    }
-                } catch {
-                    localStorage.removeItem('cpfAuthSession');
-                }
-            }
-        }
+		async function cleanExpiredSessions() {
+		    // Limpar sessões expiradas do servidor
+		    try {
+		        await supabase
+		            .from('user_sessions')
+		            .delete()
+		            .lt('expires_at', new Date().toISOString());
+		        
+		        console.log('Sessões expiradas limpas do servidor');
+		    } catch (error) {
+		        console.error('Erro ao limpar sessões expiradas:', error);
+		    }
+		    
+		    // Limpar sessão local se expirada
+		    const localSession = localStorage.getItem('cpfAuthSession');
+		    if (localSession) {
+		        try {
+		            const data = JSON.parse(localSession);
+		            const now = Date.now();
+		            
+		            if (now > data.expiresAt || now - data.timestamp > 2 * 60 * 60 * 1000) {
+		                localStorage.removeItem('cpfAuthSession');
+		                console.log('Sessão local expirada removida');
+		            }
+		        } catch {
+		            localStorage.removeItem('cpfAuthSession');
+		        }
+		    }
+		}
 
         // 4. Função para logout manual (opcional)
         function logoutUser() {
@@ -2762,4 +2940,5 @@
 </body>
 
 </html>
+
 
