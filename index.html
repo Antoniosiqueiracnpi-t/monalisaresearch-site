@@ -821,14 +821,17 @@
 		       width: 100%;
 		       text-align: center;
 		   }
-		
-		   .social-share-section {
-		       display: flex !important;
-		       flex-direction: column;
-		       align-items: center;
-		       gap: 10px;
-		       padding: 15px 12px;
-		   }
+
+			.social-share-section {
+			    flex-direction: column;
+			    align-items: center;
+			    gap: 10px;
+			    padding: 15px 12px;
+			}
+			
+			.social-share-section.active {
+			    display: flex;  /* Manter a regra da classe active */
+			}
 		   
 		   .social-share-buttons {
 		       justify-content: center;
@@ -2201,30 +2204,31 @@
 		                // LÓGICA DE COMPARTILHAMENTO CORRIGIDA
 		                let showShareButtons = false;
 		                
-		                if (isPrivate) {
-		                    privateCount++;
-		                    
-		                    // Relatório privado - verificar permissões
-		                    if (isAuthenticated && userAccess) {
-		                        // Usuário autenticado
-		                        if (userAccess.level === 'FULL_ACCESS') {
-		                            // RESEARCH - pode compartilhar
-		                            btnEl.innerHTML = 'Ver Relatório';
-		                            showShareButtons = true;
-		                        } else if (userAccess.level === 'PROFESSIONAL') {
-		                            // ASSESSOR - pode compartilhar
-		                            btnEl.innerHTML = '🔒 Ver Relatório';
-		                            showShareButtons = true;
-		                        } else if (userAccess.level === 'BASIC') {
-		                            // INVESTIDOR - NÃO pode compartilhar privados
-		                            btnEl.innerHTML = '🔒 Ver Relatório';
-		                            showShareButtons = false; // NÃO MOSTRAR COMPARTILHAMENTO
-		                        }
-		                    } else {
-		                        // Usuário NÃO autenticado - NÃO mostrar compartilhamento
-		                        btnEl.innerHTML = '🔒 Ver Relatório';
-		                        showShareButtons = false;
-		                    }
+
+						if (isPrivate) {
+						    privateCount++;
+						    
+						    // Relatório privado - verificar permissões
+						    if (isAuthenticated && userAccess) {
+						        // Usuário autenticado
+						        if (userAccess.level === 'FULL_ACCESS') {
+						            // RESEARCH - SEM cadeado e pode compartilhar
+						            btnEl.innerHTML = 'Ver Relatório'; // SEM CADEADO
+						            showShareButtons = true;
+						        } else if (userAccess.level === 'PROFESSIONAL') {
+						            // ASSESSOR - COM cadeado e pode compartilhar
+						            btnEl.innerHTML = '🔒 Ver Relatório';
+						            showShareButtons = true;
+						        } else if (userAccess.level === 'BASIC') {
+						            // INVESTIDOR - COM cadeado e NÃO pode compartilhar privados
+						            btnEl.innerHTML = '🔒 Ver Relatório';
+						            showShareButtons = false;
+						        }
+						    } else {
+						        // Usuário NÃO autenticado - COM cadeado e NÃO mostrar compartilhamento
+						        btnEl.innerHTML = '🔒 Ver Relatório';
+						        showShareButtons = false;
+						    }
 		                } else {
 		                    // Relatório PÚBLICO - todos podem compartilhar
 		                    publicCount++;
@@ -2233,21 +2237,22 @@
 		                }
 		                
 		                // Aplicar visibilidade dos botões de compartilhamento
-		                if (shareDiv) {
-		                    if (showShareButtons) {
-		                        const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
-		                        if (buttonsContainer) {
-		                            buttonsContainer.innerHTML = createShareButtons(type, strategy.title);
-		                        }
-		                        shareDiv.classList.add('active');
-		                    } else {
-		                        shareDiv.classList.remove('active');
-		                        const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
-		                        if (buttonsContainer) {
-		                            buttonsContainer.innerHTML = '';
-		                        }
-		                    }
-		                }
+						if (shareDiv) {
+						    const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
+						    if (showShareButtons && buttonsContainer) {
+						        // Criar botões PRIMEIRO
+						        buttonsContainer.innerHTML = createShareButtons(type, strategy.title);
+						        // Depois adicionar classe active com delay mínimo para garantir renderização
+						        setTimeout(() => {
+						            shareDiv.classList.add('active');
+						        }, 10);
+						    } else {
+						        shareDiv.classList.remove('active');
+						        if (buttonsContainer) {
+						            buttonsContainer.innerHTML = '';
+						        }
+						    }
+						}
 		                
 		                if (!lastUpdateDate || date > lastUpdateDate) {
 		                    lastUpdateDate = date;
@@ -3290,6 +3295,7 @@
 </body>
 
 </html>
+
 
 
 
