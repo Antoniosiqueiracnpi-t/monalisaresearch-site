@@ -2007,13 +2007,22 @@
                         btn.innerHTML = 'Ver Relatório';
                     }
                     const shareDiv = document.getElementById(strategy.shareEl);
-                    if (shareDiv) {
-                        shareDiv.classList.remove('active');
-                        const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
-                        if (buttonsContainer) {
-                            buttonsContainer.innerHTML = '';
-                        }
-                    }
+					if (shareDiv) {
+					    const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
+					    if (buttonsContainer) {
+					        // Verificar se usuário pode compartilhar este relatório
+					        const session = getLocalSession();
+					        const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
+					        
+					        if (canShareReport(report, userAccess)) {
+					            buttonsContainer.innerHTML = createShareButtons(type, strategy.title);
+					            shareDiv.classList.add('active');
+					        } else {
+					            buttonsContainer.innerHTML = '';
+					            shareDiv.classList.remove('active');
+					        }
+					    }
+					}
                 });
                 
                 // Atualizar cada card com base nos dados
@@ -2187,16 +2196,17 @@
                 this.SPREADSHEET_ID = '1--E380ln9HjsiDX5fbw0NbZfXdWFn4CcTgx55Fgzw-w';
                 this.SHEET_NAME = 'Assinantes';
                 this.API_KEY = null;
-                
-                this.COLUMNS = {
-                    NOME: 'A',
-                    CPF: 'B', 
-                    EMAIL: 'C',
-                    TELEFONE: 'D',
-                    STATUS: 'E',
-                    DATA_INICIO: 'F',
-                    DATA_FIM: 'G'
-                };
+
+				this.COLUMNS = {
+				    NOME: 'A',
+				    CPF: 'B', 
+				    EMAIL: 'C',
+				    TELEFONE: 'D',
+				    TIPO: 'E',        // ← NOVO
+				    STATUS: 'F',      // ← MOVIDO
+				    DATA_INICIO: 'G', // ← MOVIDO
+				    DATA_FIM: 'H'     // ← MOVIDO
+				};
             }
 
             initialize(apiKey) {
@@ -2238,16 +2248,17 @@
                         const rowCPF = (row[1] || '').replace(/\D/g, '');
                         
                         if (rowCPF === cleanCPF) {
-                            const subscriber = {
-                                nome: row[0] || '',
-                                cpf: rowCPF,
-                                email: row[2] || '',
-                                telefone: row[3] || '',
-                                status: (row[4] || '').toLowerCase(),
-                                dataInicio: row[5] || '',
-                                dataFim: row[6] || '',
-                                rowIndex: i + 1
-                            };
+							const subscriber = {
+							    nome: row[0] || '',
+							    cpf: rowCPF,
+							    email: row[2] || '',
+							    telefone: row[3] || '',
+							    tipo: (row[4] || '').toUpperCase(), // ← NOVO
+							    status: (row[5] || '').toLowerCase(), // ← MOVIDO
+							    dataInicio: row[6] || '',            // ← MOVIDO
+							    dataFim: row[7] || '',               // ← MOVIDO
+							    rowIndex: i + 1
+							};
                             
                             const isActive = subscriber.status === 'ativo';
                             let dateValid = true;
@@ -2828,15 +2839,17 @@
 		async function createAuthSession() {
 		    const sessionToken = generateSessionToken();
 		    const expiresAt = new Date(Date.now() + (2 * 60 * 60 * 1000)); // 2 horas
-		    
-		    const sessionData = {
-		        cpf: currentCPF,
-		        name: currentSubscriber.nome,
-		        email: currentSubscriber.email,
-		        timestamp: Date.now(),
-		        expiresAt: expiresAt.getTime(),
-		        sessionToken: sessionToken
-		    };
+
+			const sessionData = {
+			    cpf: currentCPF,
+			    name: currentSubscriber.nome,
+			    email: currentSubscriber.email,
+			    tipo: currentSubscriber.tipo,        // ← NOVO
+			    accessLevel: getUserAccessLevel(currentSubscriber.tipo), // ← NOVO
+			    timestamp: Date.now(),
+			    expiresAt: expiresAt.getTime(),
+			    sessionToken: sessionToken
+			};
 		    
 		    try {
 		        // Salvar sessão no Supabase para compartilhar entre dispositivos
@@ -2978,6 +2991,74 @@
             return `${maskedUsername}@${domain}`;
         }
 
+		function getUserAccessLevel(userType) {
+		    switch(userType) {
+		        case 'RESEARCH': 
+		            return {
+		                level: 'FULL_ACCESS',
+		                canShareAll: true,
+		                hasWatermark: false,
+		                description: 'Acesso total sem restrições'
+		            };
+		        case 'ASSESSOR':
+		            return {
+		                level: 'PROFESSIONAL', 
+		                canShareAll: true,
+		                hasWatermark: true,
+		                description: 'Pode compartilhar tudo, mas com marca d\'água'
+		            };
+		        case 'INVESTIDOR':
+		            return {
+		                level: 'BASIC',
+		                canShareAll: false,
+		                hasWatermark: true,
+		                description: 'Só pode compartilhar relatórios públicos'
+		            };
+		        default:
+		            return {
+		                level: 'LIMITED',
+		                canShareAll: false, 
+		                hasWatermark: true,
+		                description: 'Acesso limitado'
+		            };
+		    }
+		}
+		
+		// Verificar se usuário pode acessar relatório
+		function canAccessReport(report, userAccess) {
+		    // RESEARCH tem acesso a tudo
+		    if (userAccess.level === 'FULL_ACCESS') {
+		        return true;
+		    }
+		    
+		    // ASSESSOR e INVESTIDOR seguem regras normais de público/privado
+		    if (report.access_level === 'private') {
+		        return userAccess.level === 'PROFESSIONAL' || userAccess.level === 'BASIC';
+		    }
+		    
+		    return true; // Relatórios públicos são acessíveis a todos
+		}
+		
+		// Verificar se usuário pode compartilhar relatório específico
+		function canShareReport(report, userAccess) {
+		    // RESEARCH pode compartilhar tudo
+		    if (userAccess.level === 'FULL_ACCESS') {
+		        return true;
+		    }
+		    
+		    // ASSESSOR pode compartilhar tudo (mas com marca d'água)
+		    if (userAccess.level === 'PROFESSIONAL') {
+		        return true;
+		    }
+		    
+		    // INVESTIDOR só pode compartilhar relatórios públicos
+		    if (userAccess.level === 'BASIC') {
+		        return report.access_level !== 'private';
+		    }
+		    
+		    return false;
+		}		
+
 
 	// Máscara de CPF - aguardar DOM estar pronto
         function setupEventListeners() {
@@ -3041,6 +3122,7 @@
 </body>
 
 </html>
+
 
 
 
