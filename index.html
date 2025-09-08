@@ -2273,11 +2273,18 @@
 		        const session = getLocalSession();
 		        const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
 		        const report = availableReports[type];
-		
+		        
+		        // ADICIONAR: Forçar sem marca d'água para RESEARCH
+		        const hasWatermark = userAccess.level === 'FULL_ACCESS' ? false : userAccess.hasWatermark;
+		        
 		        // Salvar informações de acesso para o PDF viewer
-		        sessionStorage.setItem('userAccessLevel', JSON.stringify(userAccess));
+		        sessionStorage.setItem('userAccessLevel', JSON.stringify({
+		            ...userAccess,
+		            hasWatermark: hasWatermark  // Sobrescrever valor
+		        }));
 		        sessionStorage.setItem('reportAccessLevel', report ? report.access_level : 'public');
 		        sessionStorage.setItem('currentReportType', type);
+		        sessionStorage.setItem('userType', session?.tipo || 'INVESTIDOR'); // ADICIONAR
 		        
 		        const width = Math.min(1200, screen.width * 0.9);
 		        const height = Math.min(800, screen.height * 0.9);
@@ -2285,7 +2292,7 @@
 		        const top = (screen.height - height) / 2;
 		        
 		        const viewer = window.open(
-		            `pdf-viewer.html?type=${type}`,
+		            `pdf-viewer.html?type=${type}&watermark=${hasWatermark}`, // ADICIONAR parâmetro
 		            'PDFViewer',
 		            `width=${width},height=${height},left=${left},top=${top},` +
 		            'toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes'
@@ -3011,15 +3018,18 @@
                     return;
                 }
                 
-                createAuthSession();
-                showAuthStep(3);
-                
-                setTimeout(() => {
-                    closeCPFAuthModal();
-                    if (pendingReportType) {
-                        openPDFViewer(pendingReportType);
-                    }
-                }, 2000);
+				await createAuthSession();
+				showAuthStep(3);
+				
+				// Atualizar interface imediatamente
+				await updateAllStrategies();
+				
+				setTimeout(() => {
+				    closeCPFAuthModal();
+				    if (pendingReportType) {
+				        openPDFViewer(pendingReportType);
+				    }
+				}, 2000);
                 
             } catch (error) {
                 console.error('Erro na validação do código:', error);
@@ -3033,18 +3043,25 @@
         // Funções auxiliares
 		async function createAuthSession() {
 		    const sessionToken = generateSessionToken();
-		    const expiresAt = new Date(Date.now() + (2 * 60 * 60 * 1000)); // 2 horas
-
-			const sessionData = {
-			    cpf: currentCPF,
-			    name: currentSubscriber.nome,
-			    email: currentSubscriber.email,
-			    tipo: currentSubscriber.tipo,        // ← NOVO
-			    accessLevel: getUserAccessLevel(currentSubscriber.tipo), // ← NOVO
-			    timestamp: Date.now(),
-			    expiresAt: expiresAt.getTime(),
-			    sessionToken: sessionToken
-			};
+		    const expiresAt = new Date(Date.now() + (2 * 60 * 60 * 1000));
+		    
+		    // GARANTIR que o tipo está correto
+		    const userType = currentSubscriber.tipo || 'INVESTIDOR';
+		    const accessLevel = getUserAccessLevel(userType);
+		    
+		    const sessionData = {
+		        cpf: currentCPF,
+		        name: currentSubscriber.nome,
+		        email: currentSubscriber.email,
+		        tipo: userType.toUpperCase(), // FORÇAR UPPERCASE
+		        accessLevel: {
+		            ...accessLevel,
+		            hasWatermark: userType === 'RESEARCH' ? false : accessLevel.hasWatermark
+		        },
+		        timestamp: Date.now(),
+		        expiresAt: expiresAt.getTime(),
+		        sessionToken: sessionToken
+		    };
 		    
 		    try {
 		        // Salvar sessão no Supabase para compartilhar entre dispositivos
@@ -3248,6 +3265,7 @@
 </body>
 
 </html>
+
 
 
 
