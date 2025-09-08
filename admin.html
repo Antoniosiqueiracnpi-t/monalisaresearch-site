@@ -865,16 +865,6 @@
 	        this.SPREADSHEET_ID = '1--E380ln9HjsiDX5fbw0NbZfXdWFn4CcTgx55Fgzw-w';
 	        this.SHEET_NAME = 'Assinantes';
 	        this.API_KEY = null;
-	        
-	        this.COLUMNS = {
-	            NOME: 'A',
-	            CPF: 'B', 
-	            EMAIL: 'C',
-	            TELEFONE: 'D',
-	            STATUS: 'E',
-	            DATA_INICIO: 'F',
-	            DATA_FIM: 'G'
-	        };
 	    }
 	
 	    initialize(apiKey) {
@@ -894,16 +884,25 @@
 	            
 	            const activeSubscribers = [];
 	            
+	            // Começar da linha 2 (índice 1) para pular o cabeçalho
 	            for (let i = 1; i < rows.length; i++) {
 	                const row = rows[i];
-	                const status = (row[4] || '').toLowerCase();
 	                
-	                if (status === 'ativo' && row[2]) { // Status ativo e tem email
+	                if (!row || row.length < 4) continue; // Pular linhas vazias
+	                
+	                const nome = row[0] || '';
+	                const cpf = row[1] || '';
+	                const email = row[2] || '';
+	                const telefone = row[3] || '';
+	                const status = row[4] || '';
+	                
+	                // Verificar se está ativo e tem email válido
+	                if (status.toLowerCase().trim() === 'ativo' && email.includes('@')) {
 	                    activeSubscribers.push({
-	                        nome: row[0],
-	                        cpf: row[1],
-	                        email: row[2],
-	                        telefone: row[3]
+	                        nome: nome.trim(),
+	                        cpf: cpf.trim(),
+	                        email: email.trim(),
+	                        telefone: telefone.trim()
 	                    });
 	                }
 	            }
@@ -1706,4 +1705,5 @@
 </body>
 
 </html>
+
 
