@@ -747,140 +747,168 @@
         
         /* SUBSTITUIR TODAS AS MEDIA QUERIES EXISTENTES POR ESTE CSS */
 
-        /* Melhorar responsividade APENAS para tablets - Desktop mantido como estava */
-        @media (max-width: 1024px) and (min-width: 769px) {
-            .strategies-grid {
-                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                gap: 1.5rem;
-            }
-            
-            .nav-container {
-                padding: 0 1rem;
-            }
-            
-            .header-actions {
-                flex-direction: column;
-                gap: 0.5rem;
-                align-items: stretch;
-            }
-            
-            .last-update {
-                font-size: 0.8rem;
-                padding: 0.4rem 1rem;
-            }
-            
-            .refresh-btn {
-                padding: 0.7rem 1.5rem;
-                font-size: 0.85rem;
-            }
-        }
+		/* Melhorar responsividade APENAS para tablets - Desktop mantido como estava */
+		@media (max-width: 1024px) and (min-width: 769px) {
+		   .strategies-grid {
+		       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+		       gap: 1.5rem;
+		   }
+		   
+		   .nav-container {
+		       padding: 0 1rem;
+		   }
+		   
+		   .header-actions {
+		       flex-direction: column;
+		       gap: 0.5rem;
+		       align-items: stretch;
+		   }
+		   
+		   .last-update {
+		       font-size: 0.8rem;
+		       padding: 0.4rem 1rem;
+		   }
+		   
+		   .refresh-btn {
+		       padding: 0.7rem 1.5rem;
+		       font-size: 0.85rem;
+		   }
+		   
+		   .social-share-section {
+		       flex-direction: row;
+		       align-items: center;
+		       padding: 12px;
+		   }
+		   
+		   .social-share-buttons {
+		       gap: 8px;
+		   }
+		   
+		   .share-btn {
+		       width: 34px;
+		       height: 34px;
+		       font-size: 16px;
+		   }
+		}
 
-        /* Responsividade APENAS mobile - Desktop e tablet mantidos */
-        @media (max-width: 768px) {
-            .strategies-grid {
-                grid-template-columns: 1fr;
-                gap: 1rem;
-            }
-            
-            /* Ajustar grid específico do bloco Análise de Mercado */
-            .container .strategies-grid[style*="minmax(400px, 1fr)"] {
-                grid-template-columns: 1fr !important;
-            }
-            
-            .strategy-card {
-                padding: 1.5rem;
-            }
-            
-            .card-title {
-                font-size: 1.5rem;
-            }
-            
-            .card-footer-content {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 1rem;
-            }
-            
-            .btn-view-pdf {
-                width: 100%;
-                text-align: center;
-            }
-
+		/* Responsividade APENAS mobile - Desktop e tablet mantidos */
+		@media (max-width: 768px) {
+		   .strategies-grid {
+		       grid-template-columns: 1fr;
+		       gap: 1rem;
+		   }
+		   
+		   /* Ajustar grid específico do bloco Análise de Mercado */
+		   .container .strategies-grid[style*="minmax(400px, 1fr)"] {
+		       grid-template-columns: 1fr !important;
+		   }
+		   
+		   .strategy-card {
+		       padding: 1.5rem;
+		   }
+		   
+		   .card-title {
+		       font-size: 1.5rem;
+		   }
+		   
+		   .card-footer-content {
+		       flex-direction: column;
+		       align-items: stretch;
+		       gap: 1rem;
+		   }
+		   
+		   .btn-view-pdf {
+		       width: 100%;
+		       text-align: center;
+		   }
 		
-            
-            .social-share-section {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 10px;
-            }
-            
-            .social-share-buttons {
-                justify-content: center;
-            }
-            
-            .hero {
-                padding: 3rem 1rem 2rem;
-            }
-            
-            .hero p {
-                font-size: 1rem;
-            }
-            
-            .container {
-                padding: 0 1rem 4rem;
-            }
-            
-            .positions-grid {
-                grid-template-columns: 1fr;
-                gap: 1rem;
-            }
-            
-            .position-card {
-                padding: 1.5rem;
-            }
-            
-            .position-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1rem;
-            }
-            
-            .position-return {
-                text-align: left;
-                width: 100%;
-            }
-            
-            /* Modal responsivo */
-            .modal-content {
-                width: 95%;
-                padding: 30px 20px;
-                margin: 0 10px;
-            }
-            
-            .modal-buttons {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .btn-modal {
-                width: 100%;
-            }
-            
-            .code-input {
-                font-size: 16px; /* Evita zoom no iOS */
-            }
-            
-            /* Melhorar espaçamento em cards quando empilhados */
-            .strategies-grid + hr {
-                margin: 2rem 0 !important;
-            }
-            
-            h2[style*="text-align: center"] {
-                margin-bottom: 1.5rem !important;
-                font-size: 1.5rem !important;
-            }
-			
-        }
+		   .social-share-section {
+		       display: flex !important;
+		       flex-direction: column;
+		       align-items: center;
+		       gap: 10px;
+		       padding: 15px 12px;
+		   }
+		   
+		   .social-share-buttons {
+		       justify-content: center;
+		       flex-wrap: wrap;
+		       gap: 12px;
+		   }
+		   
+		   .share-btn {
+		       width: 40px;
+		       height: 40px;
+		       font-size: 20px;
+		   }
+		   
+		   .share-label {
+		       text-align: center;
+		       margin-bottom: 5px;
+		   }
+		   
+		   .hero {
+		       padding: 3rem 1rem 2rem;
+		   }
+		   
+		   .hero p {
+		       font-size: 1rem;
+		   }
+		   
+		   .container {
+		       padding: 0 1rem 4rem;
+		   }
+		   
+		   .positions-grid {
+		       grid-template-columns: 1fr;
+		       gap: 1rem;
+		   }
+		   
+		   .position-card {
+		       padding: 1.5rem;
+		   }
+		   
+		   .position-header {
+		       flex-direction: column;
+		       align-items: flex-start;
+		       gap: 1rem;
+		   }
+		   
+		   .position-return {
+		       text-align: left;
+		       width: 100%;
+		   }
+		   
+		   /* Modal responsivo */
+		   .modal-content {
+		       width: 95%;
+		       padding: 30px 20px;
+		       margin: 0 10px;
+		   }
+		   
+		   .modal-buttons {
+		       flex-direction: column;
+		       gap: 10px;
+		   }
+		   
+		   .btn-modal {
+		       width: 100%;
+		   }
+		   
+		   .code-input {
+		       font-size: 16px; /* Evita zoom no iOS */
+		   }
+		   
+		   /* Melhorar espaçamento em cards quando empilhados */
+		   .strategies-grid + hr {
+		       margin: 2rem 0 !important;
+		   }
+		   
+		   h2[style*="text-align: center"] {
+		       margin-bottom: 1.5rem !important;
+		       font-size: 1.5rem !important;
+		   }
+		}
 
         /* Responsividade para telas muito pequenas APENAS */
         @media (max-width: 480px) {
@@ -2606,13 +2634,19 @@
 		    }
 		}
 		
+
 		// Restaurar sessão do servidor
 		async function restoreServerSession(serverData, cpf) {
 		    try {
+		        // Buscar dados do assinante para obter o tipo/nível
+		        const status = await sheetsService.checkSubscriberStatus(cpf);
+		        
 		        const sessionData = {
 		            cpf: cpf,
 		            name: serverData.subscriber_data.name,
 		            email: serverData.subscriber_data.email,
+		            tipo: status.subscriber?.tipo || 'INVESTIDOR', // ← ADICIONAR
+		            accessLevel: getUserAccessLevel(status.subscriber?.tipo || 'INVESTIDOR'), // ← ADICIONAR
 		            timestamp: new Date(serverData.created_at).getTime(),
 		            expiresAt: new Date(serverData.expires_at).getTime(),
 		            sessionToken: serverData.session_token
@@ -3233,6 +3267,7 @@
 </body>
 
 </html>
+
 
 
 
