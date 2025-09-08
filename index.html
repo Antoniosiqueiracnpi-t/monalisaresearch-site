@@ -2086,102 +2086,118 @@
 				    }
 				});
                 
-                // Atualizar cada card com base nos dados
-                for (const [type, strategy] of Object.entries(strategyMap)) {
-                    const report = reports.find(r => r.type === type);
-                    const updateEl = document.getElementById(strategy.updateEl);
-                    const btnEl = document.getElementById(strategy.btnEl);
-                    const shareDiv = document.getElementById(strategy.shareEl);
-                    
-                    if (report) {
-                        availableReports[type] = report;
-                        const date = new Date(report.updated_at);
-                        
-                        updateEl.textContent = 'Disponível';
-                        
-                        // Atualizar campo de último relatório
-                        if (strategy.lastReportEl) {
-                            const lastReportEl = document.getElementById(strategy.lastReportEl);
-                            if (lastReportEl) {
-                                lastReportEl.textContent = `Último relatório: ${date.toLocaleDateString('pt-BR')}`;
-                            }
-                        }
-                        
-                        btnEl.disabled = false;
-                        reportCount++;
-                        
-                        // Verificar se é privado
-                        const isPrivate = report.access_level === 'private';
-
-						if (isPrivate) {
-						    privateCount++;
-						    btnEl.innerHTML = '<span class="lock-icon">🔒</span> Ver Relatório';
-						    
-						    // Adicionar indicador de marca d'água para usuários não-RESEARCH
-						    const session = getLocalSession();
-						    const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
-						    
-						    if (userAccess.hasWatermark && userAccess.level !== 'FULL_ACCESS') {
-						        btnEl.title = 'Relatório com marca d\'água';
-						    } else if (userAccess.level === 'FULL_ACCESS') {
-						        btnEl.title = 'Relatório sem marca d\'água';
-						    }
-                            // Esconder compartilhamento para relatórios privados
-                            if (shareDiv) {
-                                shareDiv.classList.remove('active');
-                                const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
-                                if (buttonsContainer) {
-                                    buttonsContainer.innerHTML = '';
-                                }
-                            }
-						} else {
-						    // Relatório público
-						    publicCount++;
-						    btnEl.innerHTML = 'Ver Relatório';
-						    
-						    // Adicionar indicador de marca d'água para usuários não-RESEARCH
-						    const session = getLocalSession();
-						    const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
-						    
-						    if (userAccess.hasWatermark && userAccess.level !== 'FULL_ACCESS') {
-						        btnEl.innerHTML = '🔒 Ver Relatório';
-						        btnEl.title = 'Relatório com marca d\'água';
-						    }
-						    
-						    // Adicionar botões de compartilhamento para relatórios públicos
-						    if (shareDiv) {
-						        const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
-						        if (buttonsContainer) {
-						            buttonsContainer.innerHTML = createShareButtons(type, strategy.title);
-						        }
-						        shareDiv.classList.add('active');
-						    }
-						}
-                        
-                        if (!lastUpdateDate || date > lastUpdateDate) {
-                            lastUpdateDate = date;
-                        }
-                    } else {
-                        updateEl.textContent = 'Sem dados';
-                        btnEl.disabled = true;
-                        
-                        // Esconder compartilhamento quando não há dados
-                        if (shareDiv) {
-                            shareDiv.classList.remove('active');
-                            const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
-                            if (buttonsContainer) {
-                                buttonsContainer.innerHTML = '';
-                            }
-                        }
-                        
-                        if (strategy.lastReportEl) {
-                            const lastReportEl = document.getElementById(strategy.lastReportEl);
-                            if (lastReportEl) {
-                                lastReportEl.textContent = 'Último relatório: --/--/----';
-                            }
-                        }
-                    }
-                }
+				// Atualizar cada card com base nos dados
+				for (const [type, strategy] of Object.entries(strategyMap)) {
+				    const report = reports.find(r => r.type === type);
+				    const updateEl = document.getElementById(strategy.updateEl);
+				    const btnEl = document.getElementById(strategy.btnEl);
+				    const shareDiv = document.getElementById(strategy.shareEl);
+				    
+				    if (report) {
+				        availableReports[type] = report;
+				        const date = new Date(report.updated_at);
+				        
+				        updateEl.textContent = 'Disponível';
+				        
+				        // Atualizar campo de último relatório
+				        if (strategy.lastReportEl) {
+				            const lastReportEl = document.getElementById(strategy.lastReportEl);
+				            if (lastReportEl) {
+				                lastReportEl.textContent = `Último relatório: ${date.toLocaleDateString('pt-BR')}`;
+				            }
+				        }
+				        
+				        btnEl.disabled = false;
+				        reportCount++;
+				        
+				        // Verificar se é privado
+				        const isPrivate = report.access_level === 'private';
+				        
+				        // Obter nível de acesso do usuário UMA VEZ
+				        const session = getLocalSession();
+				        const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
+				
+				        if (isPrivate) {
+				            privateCount++;
+				            
+				            // Configurar botão baseado no nível de acesso
+				            if (userAccess.level === 'FULL_ACCESS') {
+				                // RESEARCH: sem marca d'água
+				                btnEl.innerHTML = 'Ver Relatório';
+				                btnEl.title = 'Relatório sem marca d\'água';
+				            } else {
+				                // ASSESSOR/INVESTIDOR: com marca d'água
+				                btnEl.innerHTML = '<span class="lock-icon">🔒</span> Ver Relatório';
+				                btnEl.title = 'Relatório com marca d\'água';
+				            }
+				            
+				            // Compartilhamento para relatórios privados
+				            if (shareDiv) {
+				                if (userAccess.level === 'FULL_ACCESS' || userAccess.level === 'PROFESSIONAL') {
+				                    // RESEARCH e ASSESSOR podem compartilhar relatórios privados
+				                    const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
+				                    if (buttonsContainer) {
+				                        buttonsContainer.innerHTML = createShareButtons(type, strategy.title);
+				                    }
+				                    shareDiv.classList.add('active');
+				                } else {
+				                    // INVESTIDOR não pode compartilhar relatórios privados
+				                    shareDiv.classList.remove('active');
+				                    const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
+				                    if (buttonsContainer) {
+				                        buttonsContainer.innerHTML = '';
+				                    }
+				                }
+				            }
+				        } else {
+				            // Relatório público
+				            publicCount++;
+				            
+				            // Configurar botão baseado no nível de acesso
+				            if (userAccess.level === 'FULL_ACCESS') {
+				                // RESEARCH: sem marca d'água
+				                btnEl.innerHTML = 'Ver Relatório';
+				                btnEl.title = 'Relatório sem marca d\'água';
+				            } else {
+				                // ASSESSOR/INVESTIDOR: com marca d'água
+				                btnEl.innerHTML = '🔒 Ver Relatório';
+				                btnEl.title = 'Relatório com marca d\'água';
+				            }
+				            
+				            // Todos podem compartilhar relatórios públicos
+				            if (shareDiv) {
+				                const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
+				                if (buttonsContainer) {
+				                    buttonsContainer.innerHTML = createShareButtons(type, strategy.title);
+				                }
+				                shareDiv.classList.add('active');
+				            }
+				        }
+				        
+				        if (!lastUpdateDate || date > lastUpdateDate) {
+				            lastUpdateDate = date;
+				        }
+				    } else {
+				        updateEl.textContent = 'Sem dados';
+				        btnEl.disabled = true;
+				        
+				        // Esconder compartilhamento quando não há dados
+				        if (shareDiv) {
+				            shareDiv.classList.remove('active');
+				            const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
+				            if (buttonsContainer) {
+				                buttonsContainer.innerHTML = '';
+				            }
+				        }
+				        
+				        if (strategy.lastReportEl) {
+				            const lastReportEl = document.getElementById(strategy.lastReportEl);
+				            if (lastReportEl) {
+				                lastReportEl.textContent = 'Último relatório: --/--/----';
+				            }
+				        }
+				    }
+				}
                 
                 // Processar dados de posições
                 await processPositionsData();
@@ -3188,6 +3204,7 @@
 </body>
 
 </html>
+
 
 
 
