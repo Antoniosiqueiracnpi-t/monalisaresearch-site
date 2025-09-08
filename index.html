@@ -2048,224 +2048,220 @@
 		    return false;
 		}
 		
-        
-        // Atualizar cards de estratégia
-        async function updateAllStrategies() {
-            try {
-                const reports = await getAllReports();
-                let lastUpdateDate = null;
-                let reportCount = 0;
-                let publicCount = 0;
-                let privateCount = 0;
-                
-                // Mapeamento de tipos
-                const strategyMap = {
-                    'brasil': { 
-                        updateEl: 'updateBrasil', 
-                        btnEl: 'btnBrasil', 
-                        lastReportEl: 'lastReportBrasil',
-                        shareEl: 'shareBrasil',
-                        title: 'Monalisa Brasil'
-                    },
-                    'global': { 
-                        updateEl: 'updateGlobal', 
-                        btnEl: 'btnGlobal', 
-                        lastReportEl: 'lastReportGlobal',
-                        shareEl: 'shareGlobal',
-                        title: 'Monalisa Global'
-                    },
-                    'quant': { 
-                        updateEl: 'updateQuant', 
-                        btnEl: 'btnQuant', 
-                        lastReportEl: 'lastReportQuant',
-                        shareEl: 'shareQuant',
-                        title: 'Monalisa Quant'
-                    },
-                    'opcoes': { 
-                        updateEl: 'updateOpcoes', 
-                        btnEl: 'btnOpcoes', 
-                        lastReportEl: 'lastReportOpcoes',
-                        shareEl: 'shareOpcoes',
-                        title: 'Monalisa Opções'
-                    },
-                    'longshort': { 
-                        updateEl: 'updateLongshort', 
-                        btnEl: 'btnLongshort', 
-                        lastReportEl: 'lastReportLongshort',
-                        shareEl: 'shareLongshort',
-                        title: 'Monalisa Long/Short'
-                    },
-                    'vectordi': { 
-                        updateEl: 'updateVectordi', 
-                        btnEl: 'btnVectordi', 
-                        lastReportEl: 'lastReportVectordi',
-                        shareEl: 'shareVectordi',
-                        title: 'Monalisa Vector DI'
-                    },
-                    'graficos': { 
-                        updateEl: 'updateGraficos', 
-                        btnEl: 'btnGraficos', 
-                        lastReportEl: 'lastReportGraficos',
-                        shareEl: 'shareGraficos',
-                        title: 'Gráficos em Ação'
-                    },
-                    'rendafixa': { 
-                        updateEl: 'updateRendafixa', 
-                        btnEl: 'btnRendafixa', 
-                        lastReportEl: 'lastReportRendafixa',
-                        shareEl: 'shareRendafixa',
-                        title: 'De Olho na Renda Fixa'
-                    },
-
-                    'insights': { 
-                        updateEl: 'updateInsights', 
-                        btnEl: 'btnInsights', 
-                        lastReportEl: 'lastReportInsights',
-                        shareEl: 'shareInsights',
-                        title: 'Monalisa Insights'
-                    }
-                };
-                
-                // Resetar todos os botões primeiro
-				Object.values(strategyMap).forEach(strategy => {
-				    const btn = document.getElementById(strategy.btnEl);
-				    if (btn) {
-				        btn.disabled = true;
-				        btn.innerHTML = 'Ver Relatório';
-				    }
-				    const shareDiv = document.getElementById(strategy.shareEl);
-				    if (shareDiv) {
-				        shareDiv.classList.remove('active');
-				        const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
-				        if (buttonsContainer) {
-				            buttonsContainer.innerHTML = '';
-				        }
-				    }
-				});
-                
-				// Atualizar cada card com base nos dados
-				for (const [type, strategy] of Object.entries(strategyMap)) {
-				    const report = reports.find(r => r.type === type);
-				    const updateEl = document.getElementById(strategy.updateEl);
-				    const btnEl = document.getElementById(strategy.btnEl);
-				    const shareDiv = document.getElementById(strategy.shareEl);
-				    
-				    if (report) {
-				        availableReports[type] = report;
-				        const date = new Date(report.updated_at);
-				        
-				        updateEl.textContent = 'Disponível';
-				        
-				        // Atualizar campo de último relatório
-				        if (strategy.lastReportEl) {
-				            const lastReportEl = document.getElementById(strategy.lastReportEl);
-				            if (lastReportEl) {
-				                lastReportEl.textContent = `Último relatório: ${date.toLocaleDateString('pt-BR')}`;
-				            }
-				        }
-				        
-				        btnEl.disabled = false;
-				        reportCount++;
-				        
-				        // Verificar se é privado
-				        const isPrivate = report.access_level === 'private';
-				        
-						// Obter nível de acesso do usuário UMA VEZ
-						const session = getLocalSession();
-						const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
-						
-						if (isPrivate) {
-						    privateCount++;
-						    
-						    // Configurar botão baseado no nível de acesso
-						    if (userAccess.level === 'FULL_ACCESS') {
-						        btnEl.innerHTML = 'Ver Relatório';
-						        btnEl.title = 'Relatório sem marca d\'água';
-						    } else {
-						        btnEl.innerHTML = '🔒 Ver Relatório';
-						        btnEl.title = 'Relatório com marca d\'água';
-						    }
-						    
-						    // Sempre mostrar compartilhamento para usuários autenticados
-						    if (shareDiv) {
-						        const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
-						        if (buttonsContainer) {
-						            buttonsContainer.innerHTML = createShareButtons(type, strategy.title);
-						        }
-						        shareDiv.classList.add('active'); // ← SEMPRE ADICIONAR
-						    }
-						} else {
-						    // Relatório público
-						    publicCount++;
-						    
-						    // Configurar botão baseado no nível de acesso
-						    if (userAccess.level === 'FULL_ACCESS') {
-						        btnEl.innerHTML = 'Ver Relatório';
-						        btnEl.title = 'Relatório sem marca d\'água';
-						    } else {
-						        btnEl.innerHTML = '🔒 Ver Relatório';
-						        btnEl.title = 'Relatório com marca d\'água';
-						    }
-						    
-						    // Sempre mostrar compartilhamento para relatórios públicos
-						    if (shareDiv) {
-						        const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
-						        if (buttonsContainer) {
-						            buttonsContainer.innerHTML = createShareButtons(type, strategy.title);
-						        }
-						        shareDiv.classList.add('active'); // ← SEMPRE ADICIONAR
-						    }
-						}
-				        
-				        if (!lastUpdateDate || date > lastUpdateDate) {
-				            lastUpdateDate = date;
-				        }
-				    } else {
-				        updateEl.textContent = 'Sem dados';
-				        btnEl.disabled = true;
-				        
-				        // Esconder compartilhamento quando não há dados
-				        if (shareDiv) {
-				            shareDiv.classList.remove('active');
-				            const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
-				            if (buttonsContainer) {
-				                buttonsContainer.innerHTML = '';
-				            }
-				        }
-				        
-				        if (strategy.lastReportEl) {
-				            const lastReportEl = document.getElementById(strategy.lastReportEl);
-				            if (lastReportEl) {
-				                lastReportEl.textContent = 'Último relatório: --/--/----';
-				            }
-				        }
-				    }
-				}
-                
-                // Processar dados de posições
-                await processPositionsData();
-                
-               
-                // Atualizar última atualização global
-                if (lastUpdateDate) {
-                    document.getElementById('lastUpdate').textContent = 
-                        `Atualizado: ${lastUpdateDate.toLocaleDateString('pt-BR')}`;
-                }
-                
-                // Carregar código de acesso do admin para verificação
-                const adminCode = localStorage.getItem('subscriberAccessCode');
-                if (adminCode) {
-                    const savedUserCode = localStorage.getItem('subscriberCode');
-                    if (savedUserCode && savedUserCode !== adminCode) {
-                        localStorage.removeItem('subscriberCode');
-                        localStorage.removeItem('codeTimestamp');
-                    }
-                }
-                
-            } catch (error) {
-                console.error('Erro ao atualizar estratégias:', error);
-            }
-        }
+		// Atualizar cards de estratégia
+		async function updateAllStrategies() {
+		    try {
+		        const reports = await getAllReports();
+		        let lastUpdateDate = null;
+		        let reportCount = 0;
+		        let publicCount = 0;
+		        let privateCount = 0;
+		        
+		        // Obter sessão do usuário UMA VEZ
+		        const session = getLocalSession();
+		        const userAccess = session ? session.accessLevel : null;
+		        const isAuthenticated = session && isLocalSessionValid(session);
+		        
+		        // Mapeamento de tipos
+		        const strategyMap = {
+		            'brasil': { 
+		                updateEl: 'updateBrasil', 
+		                btnEl: 'btnBrasil', 
+		                lastReportEl: 'lastReportBrasil',
+		                shareEl: 'shareBrasil',
+		                title: 'Monalisa Brasil'
+		            },
+		            'global': { 
+		                updateEl: 'updateGlobal', 
+		                btnEl: 'btnGlobal', 
+		                lastReportEl: 'lastReportGlobal',
+		                shareEl: 'shareGlobal',
+		                title: 'Monalisa Global'
+		            },
+		            'quant': { 
+		                updateEl: 'updateQuant', 
+		                btnEl: 'btnQuant', 
+		                lastReportEl: 'lastReportQuant',
+		                shareEl: 'shareQuant',
+		                title: 'Monalisa Quant'
+		            },
+		            'opcoes': { 
+		                updateEl: 'updateOpcoes', 
+		                btnEl: 'btnOpcoes', 
+		                lastReportEl: 'lastReportOpcoes',
+		                shareEl: 'shareOpcoes',
+		                title: 'Monalisa Opções'
+		            },
+		            'longshort': { 
+		                updateEl: 'updateLongshort', 
+		                btnEl: 'btnLongshort', 
+		                lastReportEl: 'lastReportLongshort',
+		                shareEl: 'shareLongshort',
+		                title: 'Monalisa Long/Short'
+		            },
+		            'vectordi': { 
+		                updateEl: 'updateVectordi', 
+		                btnEl: 'btnVectordi', 
+		                lastReportEl: 'lastReportVectordi',
+		                shareEl: 'shareVectordi',
+		                title: 'Monalisa Vector DI'
+		            },
+		            'graficos': { 
+		                updateEl: 'updateGraficos', 
+		                btnEl: 'btnGraficos', 
+		                lastReportEl: 'lastReportGraficos',
+		                shareEl: 'shareGraficos',
+		                title: 'Gráficos em Ação'
+		            },
+		            'rendafixa': { 
+		                updateEl: 'updateRendafixa', 
+		                btnEl: 'btnRendafixa', 
+		                lastReportEl: 'lastReportRendafixa',
+		                shareEl: 'shareRendafixa',
+		                title: 'De Olho na Renda Fixa'
+		            },
+		            'insights': { 
+		                updateEl: 'updateInsights', 
+		                btnEl: 'btnInsights', 
+		                lastReportEl: 'lastReportInsights',
+		                shareEl: 'shareInsights',
+		                title: 'Monalisa Insights'
+		            }
+		        };
+		        
+		        // Resetar todos os botões primeiro
+		        Object.values(strategyMap).forEach(strategy => {
+		            const btn = document.getElementById(strategy.btnEl);
+		            if (btn) {
+		                btn.disabled = true;
+		                btn.innerHTML = 'Ver Relatório';
+		            }
+		            const shareDiv = document.getElementById(strategy.shareEl);
+		            if (shareDiv) {
+		                shareDiv.classList.remove('active');
+		                const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
+		                if (buttonsContainer) {
+		                    buttonsContainer.innerHTML = '';
+		                }
+		            }
+		        });
+		        
+		        // Atualizar cada card com base nos dados
+		        for (const [type, strategy] of Object.entries(strategyMap)) {
+		            const report = reports.find(r => r.type === type);
+		            const updateEl = document.getElementById(strategy.updateEl);
+		            const btnEl = document.getElementById(strategy.btnEl);
+		            const shareDiv = document.getElementById(strategy.shareEl);
+		            
+		            if (report) {
+		                availableReports[type] = report;
+		                const date = new Date(report.updated_at);
+		                
+		                updateEl.textContent = 'Disponível';
+		                
+		                // Atualizar campo de último relatório
+		                if (strategy.lastReportEl) {
+		                    const lastReportEl = document.getElementById(strategy.lastReportEl);
+		                    if (lastReportEl) {
+		                        lastReportEl.textContent = `Último relatório: ${date.toLocaleDateString('pt-BR')}`;
+		                    }
+		                }
+		                
+		                btnEl.disabled = false;
+		                reportCount++;
+		                
+		                // Verificar se é privado
+		                const isPrivate = report.access_level === 'private';
+		                
+		                // LÓGICA DE COMPARTILHAMENTO CORRIGIDA
+		                let showShareButtons = false;
+		                
+		                if (isPrivate) {
+		                    privateCount++;
+		                    
+		                    // Relatório privado - verificar permissões
+		                    if (isAuthenticated && userAccess) {
+		                        // Usuário autenticado
+		                        if (userAccess.level === 'FULL_ACCESS') {
+		                            // RESEARCH - pode compartilhar
+		                            btnEl.innerHTML = 'Ver Relatório';
+		                            showShareButtons = true;
+		                        } else if (userAccess.level === 'PROFESSIONAL') {
+		                            // ASSESSOR - pode compartilhar
+		                            btnEl.innerHTML = '🔒 Ver Relatório';
+		                            showShareButtons = true;
+		                        } else if (userAccess.level === 'BASIC') {
+		                            // INVESTIDOR - NÃO pode compartilhar privados
+		                            btnEl.innerHTML = '🔒 Ver Relatório';
+		                            showShareButtons = false; // NÃO MOSTRAR COMPARTILHAMENTO
+		                        }
+		                    } else {
+		                        // Usuário NÃO autenticado - NÃO mostrar compartilhamento
+		                        btnEl.innerHTML = '🔒 Ver Relatório';
+		                        showShareButtons = false;
+		                    }
+		                } else {
+		                    // Relatório PÚBLICO - todos podem compartilhar
+		                    publicCount++;
+		                    btnEl.innerHTML = 'Ver Relatório';
+		                    showShareButtons = true; // SEMPRE mostrar para públicos
+		                }
+		                
+		                // Aplicar visibilidade dos botões de compartilhamento
+		                if (shareDiv) {
+		                    if (showShareButtons) {
+		                        const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
+		                        if (buttonsContainer) {
+		                            buttonsContainer.innerHTML = createShareButtons(type, strategy.title);
+		                        }
+		                        shareDiv.classList.add('active');
+		                    } else {
+		                        shareDiv.classList.remove('active');
+		                        const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
+		                        if (buttonsContainer) {
+		                            buttonsContainer.innerHTML = '';
+		                        }
+		                    }
+		                }
+		                
+		                if (!lastUpdateDate || date > lastUpdateDate) {
+		                    lastUpdateDate = date;
+		                }
+		            } else {
+		                updateEl.textContent = 'Sem dados';
+		                btnEl.disabled = true;
+		                
+		                // Esconder compartilhamento quando não há dados
+		                if (shareDiv) {
+		                    shareDiv.classList.remove('active');
+		                    const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
+		                    if (buttonsContainer) {
+		                        buttonsContainer.innerHTML = '';
+		                    }
+		                }
+		                
+		                if (strategy.lastReportEl) {
+		                    const lastReportEl = document.getElementById(strategy.lastReportEl);
+		                    if (lastReportEl) {
+		                        lastReportEl.textContent = 'Último relatório: --/--/----';
+		                    }
+		                }
+		            }
+		        }
+		        
+		        // Processar dados de posições
+		        await processPositionsData();
+		        
+		        // Atualizar última atualização global
+		        if (lastUpdateDate) {
+		            document.getElementById('lastUpdate').textContent = 
+		                `Atualizado: ${lastUpdateDate.toLocaleDateString('pt-BR')}`;
+		        }
+		        
+		    } catch (error) {
+		        console.error('Erro ao atualizar estratégias:', error);
+		    }
+		}
         
 		// Abrir visualizador PDF
 		function openPDFViewer(type) {
@@ -3252,6 +3248,7 @@
 </body>
 
 </html>
+
 
 
 
