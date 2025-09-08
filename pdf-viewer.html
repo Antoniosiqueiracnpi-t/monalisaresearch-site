@@ -341,14 +341,50 @@
 
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // Obter informações do usuário da sessão
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasWatermarkParam = urlParams.get('watermark');
+        const userAccessLevel = JSON.parse(sessionStorage.getItem('userAccessLevel') || '{}');
+        const userType = sessionStorage.getItem('userType');
+        
+        // Determinar se deve mostrar marca d'água
+        const shouldShowWatermark = () => {
+            // Se for RESEARCH, nunca mostrar marca d'água
+            if (userType === 'RESEARCH' || userAccessLevel.level === 'FULL_ACCESS') {
+                return false;
+            }
+            // Se parâmetro URL diz false, não mostrar
+            if (hasWatermarkParam === 'false') {
+                return false;
+            }
+            // Caso contrário, seguir configuração do userAccessLevel
+            return userAccessLevel.hasWatermark !== false;
+        };
+        
+        const SHOW_WATERMARK = shouldShowWatermark();
+        console.log('Tipo de usuário:', userType);
+        console.log('Mostrar marca d\'água:', SHOW_WATERMARK);        
         
         let pdfDoc = null;
         let currentPage = 1;
         let totalPages = 0;
         
-        // Proteções contra cópia
+        // Proteções contra cópia - DESABILITAR para RESEARCH
         document.addEventListener('keydown', function(e) {
-            // Bloquear atalhos de teclado
+            // Se for RESEARCH, permitir atalhos
+            if (userType === 'RESEARCH' || userAccessLevel.level === 'FULL_ACCESS') {
+                // Apenas bloquear F12 para não abrir devtools acidentalmente
+                if (e.key === 'F12') {
+                    e.preventDefault();
+                }
+                // Permitir navegação com setas
+                if (e.key === 'ArrowLeft') previousPage();
+                if (e.key === 'ArrowRight') nextPage();
+                return;
+            }
+            
+            // Para outros usuários, manter proteções
             if ((e.ctrlKey && (e.key === 's' || e.key === 'p' || e.key === 'a')) || 
                 e.key === 'F12' || 
                 (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J'))) {
@@ -362,26 +398,38 @@
             if (e.key === 'ArrowRight') nextPage();
         });
         
-        // Desabilitar menu de contexto
+        // Desabilitar menu de contexto - EXCETO para RESEARCH
         document.addEventListener('contextmenu', e => {
+            if (userType === 'RESEARCH' || userAccessLevel.level === 'FULL_ACCESS') {
+                return; // Permitir menu de contexto
+            }
             e.preventDefault();
             return false;
         });
         
-        // Desabilitar seleção
+        // Desabilitar seleção - EXCETO para RESEARCH
         document.addEventListener('selectstart', e => {
+            if (userType === 'RESEARCH' || userAccessLevel.level === 'FULL_ACCESS') {
+                return; // Permitir seleção
+            }
             e.preventDefault();
             return false;
         });
         
-        // Desabilitar arrastar
+        // Desabilitar arrastar - EXCETO para RESEARCH
         document.addEventListener('dragstart', e => {
+            if (userType === 'RESEARCH' || userAccessLevel.level === 'FULL_ACCESS') {
+                return; // Permitir arrastar
+            }
             e.preventDefault();
             return false;
         });
         
-        // Desabilitar cópia
+        // Desabilitar cópia - EXCETO para RESEARCH
         document.addEventListener('copy', e => {
+            if (userType === 'RESEARCH' || userAccessLevel.level === 'FULL_ACCESS') {
+                return; // Permitir cópia normal
+            }
             e.clipboardData.setData('text/plain', 'Conteúdo protegido - Monalisa Research');
             e.preventDefault();
             return false;
@@ -475,11 +523,13 @@
                 pageWrapper.className = 'page-wrapper';
                 pageWrapper.id = `page-${pageNum}`;
                 
-                // Adicionar marca d'água
-                const watermark = document.createElement('div');
-                watermark.className = 'watermark';
-                watermark.textContent = 'MONALISA RESEARCH - CONFIDENCIAL';
-                pageWrapper.appendChild(watermark);
+                // Adicionar marca d'água APENAS se não for RESEARCH
+                if (SHOW_WATERMARK) {
+                    const watermark = document.createElement('div');
+                    watermark.className = 'watermark';
+                    watermark.textContent = 'MONALISA RESEARCH - CONFIDENCIAL';
+                    pageWrapper.appendChild(watermark);
+                }
                 
                 // Criar canvas
                 const canvas = document.createElement('canvas');
@@ -495,16 +545,18 @@
                 
                 await page.render(renderContext).promise;
                 
-                // Adicionar marca d'água no canvas
-                context.globalAlpha = 0.1;
-                context.font = '30px Arial';
-                context.fillStyle = '#FF0000';
-                context.textAlign = 'center';
-                context.save();
-                context.translate(canvas.width / 2, canvas.height / 2);
-                context.rotate(-Math.PI / 4);
-                context.fillText('CONFIDENCIAL - NÃO COPIAR', 0, 0);
-                context.restore();
+                // Adicionar marca d'água no canvas APENAS se não for RESEARCH
+                if (SHOW_WATERMARK) {
+                    context.globalAlpha = 0.1;
+                    context.font = '30px Arial';
+                    context.fillStyle = '#FF0000';
+                    context.textAlign = 'center';
+                    context.save();
+                    context.translate(canvas.width / 2, canvas.height / 2);
+                    context.rotate(-Math.PI / 4);
+                    context.fillText('CONFIDENCIAL - NÃO COPIAR', 0, 0);
+                    context.restore();
+                }
                 
                 pageWrapper.appendChild(canvas);
                 container.appendChild(pageWrapper);
@@ -586,17 +638,25 @@
             }
         }
         
-        // Detectar tentativa de print screen
+        // Detectar tentativa de print screen - EXCETO para RESEARCH
         document.addEventListener('keyup', (e) => {
+            if (userType === 'RESEARCH' || userAccessLevel.level === 'FULL_ACCESS') {
+                return; // Permitir print screen para RESEARCH
+            }
+            
             if (e.key === 'PrintScreen') {
                 navigator.clipboard.writeText('Conteúdo protegido - Monalisa Research');
                 alert('Captura de tela desabilitada para este conteúdo protegido.');
             }
         });
         
-        // Detectar perda de foco (possível tentativa de captura)
+        // Detectar perda de foco - EXCETO para RESEARCH
         let warningCount = 0;
         document.addEventListener('visibilitychange', () => {
+            if (userType === 'RESEARCH' || userAccessLevel.level === 'FULL_ACCESS') {
+                return; // Não contar avisos para RESEARCH
+            }
+            
             if (document.hidden) {
                 warningCount++;
                 if (warningCount > 2) {
@@ -628,3 +688,4 @@
 </body>
 
 </html>
+
