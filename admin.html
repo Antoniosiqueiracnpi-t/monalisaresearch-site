@@ -873,7 +873,7 @@
 	
 	    async getActiveSubscribers() {
 	        try {
-	            const range = 'Assinantes!A:G';
+	            const range = 'Assinantes!A:H';
 	            const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${this.API_KEY}`;
 	            
 	            const response = await fetch(url);
@@ -888,13 +888,16 @@
 	            for (let i = 1; i < rows.length; i++) {
 	                const row = rows[i];
 	                
-	                if (!row || row.length < 4) continue; // Pular linhas vazias
+	                if (!row || row.length < 6) continue; // Precisa pelo menos até coluna F (Status)
 	                
 	                const nome = row[0] || '';
 	                const cpf = row[1] || '';
 	                const email = row[2] || '';
 	                const telefone = row[3] || '';
-	                const status = row[4] || '';
+	                const tipo = row[4] || ''; // RESEARCH ou ASSESSOR
+	                const status = row[5] || ''; // Status agora está na coluna F (índice 5)
+	                
+	                console.log(`Linha ${i+1}: ${nome} | ${email} | Tipo: ${tipo} | Status: "${status}"`);
 	                
 	                // Verificar se está ativo e tem email válido
 	                if (status.toLowerCase().trim() === 'ativo' && email.includes('@')) {
@@ -902,11 +905,15 @@
 	                        nome: nome.trim(),
 	                        cpf: cpf.trim(),
 	                        email: email.trim(),
-	                        telefone: telefone.trim()
+	                        telefone: telefone.trim(),
+	                        tipo: tipo.trim() // Incluindo o tipo no retorno
 	                    });
+	                    
+	                    console.log(`✅ Assinante ativo adicionado: ${nome} (${email}) - Tipo: ${tipo}`);
 	                }
 	            }
 	            
+	            console.log(`Total de assinantes ativos encontrados: ${activeSubscribers.length}`);
 	            return activeSubscribers;
 	            
 	        } catch (error) {
@@ -1705,5 +1712,6 @@
 </body>
 
 </html>
+
 
 
