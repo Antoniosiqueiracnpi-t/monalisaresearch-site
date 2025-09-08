@@ -1921,6 +1921,76 @@
                 return [];
             }
         }
+		
+		// Sistema de níveis de acesso
+		function getUserAccessLevel(userType) {
+		    switch(userType) {
+		        case 'RESEARCH': 
+		            return {
+		                level: 'FULL_ACCESS',
+		                canShareAll: true,
+		                hasWatermark: false,
+		                description: 'Acesso total sem restrições'
+		            };
+		        case 'ASSESSOR':
+		            return {
+		                level: 'PROFESSIONAL', 
+		                canShareAll: true,
+		                hasWatermark: true,
+		                description: 'Pode compartilhar tudo, mas com marca d\'água'
+		            };
+		        case 'INVESTIDOR':
+		            return {
+		                level: 'BASIC',
+		                canShareAll: false,
+		                hasWatermark: true,
+		                description: 'Só pode compartilhar relatórios públicos'
+		            };
+		        default:
+		            return {
+		                level: 'LIMITED',
+		                canShareAll: false, 
+		                hasWatermark: true,
+		                description: 'Acesso limitado'
+		            };
+		    }
+		}
+		
+		// Verificar se usuário pode acessar relatório
+		function canAccessReport(report, userAccess) {
+		    // RESEARCH tem acesso a tudo
+		    if (userAccess.level === 'FULL_ACCESS') {
+		        return true;
+		    }
+		    
+		    // ASSESSOR e INVESTIDOR seguem regras normais de público/privado
+		    if (report.access_level === 'private') {
+		        return userAccess.level === 'PROFESSIONAL' || userAccess.level === 'BASIC';
+		    }
+		    
+		    return true; // Relatórios públicos são acessíveis a todos
+		}
+		
+		// Verificar se usuário pode compartilhar relatório específico
+		function canShareReport(report, userAccess) {
+		    // RESEARCH pode compartilhar tudo
+		    if (userAccess.level === 'FULL_ACCESS') {
+		        return true;
+		    }
+		    
+		    // ASSESSOR pode compartilhar tudo (mas com marca d'água)
+		    if (userAccess.level === 'PROFESSIONAL') {
+		        return true;
+		    }
+		    
+		    // INVESTIDOR só pode compartilhar relatórios públicos
+		    if (userAccess.level === 'BASIC') {
+		        return report.access_level !== 'private';
+		    }
+		    
+		    return false;
+		}
+		
         
         // Atualizar cards de estratégia
         async function updateAllStrategies() {
@@ -2000,30 +2070,21 @@
                 };
                 
                 // Resetar todos os botões primeiro
-                Object.values(strategyMap).forEach(strategy => {
-                    const btn = document.getElementById(strategy.btnEl);
-                    if (btn) {
-                        btn.disabled = true;
-                        btn.innerHTML = 'Ver Relatório';
-                    }
-                    const shareDiv = document.getElementById(strategy.shareEl);
-					if (shareDiv) {
-					    const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
-					    if (buttonsContainer) {
-					        // Verificar se usuário pode compartilhar este relatório
-					        const session = getLocalSession();
-					        const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
-					        
-					        if (canShareReport(report, userAccess)) {
-					            buttonsContainer.innerHTML = createShareButtons(type, strategy.title);
-					            shareDiv.classList.add('active');
-					        } else {
-					            buttonsContainer.innerHTML = '';
-					            shareDiv.classList.remove('active');
-					        }
-					    }
-					}
-                });
+				Object.values(strategyMap).forEach(strategy => {
+				    const btn = document.getElementById(strategy.btnEl);
+				    if (btn) {
+				        btn.disabled = true;
+				        btn.innerHTML = 'Ver Relatório';
+				    }
+				    const shareDiv = document.getElementById(strategy.shareEl);
+				    if (shareDiv) {
+				        shareDiv.classList.remove('active');
+				        const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
+				        if (buttonsContainer) {
+				            buttonsContainer.innerHTML = '';
+				        }
+				    }
+				});
                 
                 // Atualizar cada card com base nos dados
                 for (const [type, strategy] of Object.entries(strategyMap)) {
@@ -2246,7 +2307,7 @@
                     const cleanCPF = cpf.replace(/\D/g, '');
                     
                     // Corrigir o range - usar aspas simples ao invés de crases
-                    const range = 'Assinantes!A:G';
+                    const range = 'Assinantes!A:H';
                     const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${this.API_KEY}`;
                     
                     console.log('Tentando acessar URL:', url); // DEBUG
@@ -3065,75 +3126,6 @@
             return `${maskedUsername}@${domain}`;
         }
 
-		function getUserAccessLevel(userType) {
-		    switch(userType) {
-		        case 'RESEARCH': 
-		            return {
-		                level: 'FULL_ACCESS',
-		                canShareAll: true,
-		                hasWatermark: false,
-		                description: 'Acesso total sem restrições'
-		            };
-		        case 'ASSESSOR':
-		            return {
-		                level: 'PROFESSIONAL', 
-		                canShareAll: true,
-		                hasWatermark: true,
-		                description: 'Pode compartilhar tudo, mas com marca d\'água'
-		            };
-		        case 'INVESTIDOR':
-		            return {
-		                level: 'BASIC',
-		                canShareAll: false,
-		                hasWatermark: true,
-		                description: 'Só pode compartilhar relatórios públicos'
-		            };
-		        default:
-		            return {
-		                level: 'LIMITED',
-		                canShareAll: false, 
-		                hasWatermark: true,
-		                description: 'Acesso limitado'
-		            };
-		    }
-		}
-		
-		// Verificar se usuário pode acessar relatório
-		function canAccessReport(report, userAccess) {
-		    // RESEARCH tem acesso a tudo
-		    if (userAccess.level === 'FULL_ACCESS') {
-		        return true;
-		    }
-		    
-		    // ASSESSOR e INVESTIDOR seguem regras normais de público/privado
-		    if (report.access_level === 'private') {
-		        return userAccess.level === 'PROFESSIONAL' || userAccess.level === 'BASIC';
-		    }
-		    
-		    return true; // Relatórios públicos são acessíveis a todos
-		}
-		
-		// Verificar se usuário pode compartilhar relatório específico
-		function canShareReport(report, userAccess) {
-		    // RESEARCH pode compartilhar tudo
-		    if (userAccess.level === 'FULL_ACCESS') {
-		        return true;
-		    }
-		    
-		    // ASSESSOR pode compartilhar tudo (mas com marca d'água)
-		    if (userAccess.level === 'PROFESSIONAL') {
-		        return true;
-		    }
-		    
-		    // INVESTIDOR só pode compartilhar relatórios públicos
-		    if (userAccess.level === 'BASIC') {
-		        return report.access_level !== 'private';
-		    }
-		    
-		    return false;
-		}		
-
-
 	// Máscara de CPF - aguardar DOM estar pronto
         function setupEventListeners() {
             const cpfInput = document.getElementById('cpfAuthInput');
@@ -3196,6 +3188,7 @@
 </body>
 
 </html>
+
 
 
 
