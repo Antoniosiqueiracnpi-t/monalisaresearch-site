@@ -1491,16 +1491,42 @@
 
 		// Função para criar botões de compartilhamento
 		function createShareButtons(type, title) {
-		    // SEMPRE compartilhar a página principal, não o PDF direto
-		    const shareUrl = encodeURIComponent(window.location.href);
-		    const shareTitle = encodeURIComponent(`Confira o relatório ${title} da Monalisa Research`);
-		    const shareText = encodeURIComponent(`Análise quantitativa de investimentos com IA. Confira o relatório ${title} da Monalisa Research!`);
+		    const report = availableReports[type];
+		    const session = getLocalSession();
+		    const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
+		    
+		    // Verificar se é relatório privado
+		    const isPrivate = report && report.access_level === 'private';
+		    
+		    // Determinar URL para compartilhar
+		    let shareUrl;
+		    
+		    if (isPrivate) {
+		        // RELATÓRIO PRIVADO
+		        if (session && (userAccess.level === 'FULL_ACCESS' || userAccess.level === 'PROFESSIONAL')) {
+		            // RESEARCH ou ASSESSOR: pode compartilhar PDF direto
+		            shareUrl = encodeURIComponent(report.file_url);
+		        } else {
+		            // INVESTIDOR ou não logado: NÃO PODE compartilhar privado
+		            // Retornar botões vazios (não deveria chegar aqui devido à lógica em updateAllStrategies)
+		            return '';
+		        }
+		    } else {
+		        // RELATÓRIO PÚBLICO: todos podem compartilhar
+		        if (report && report.file_url) {
+		            shareUrl = encodeURIComponent(report.file_url); // PDF direto
+		        } else {
+		            shareUrl = encodeURIComponent(window.location.href); // Fallback
+		        }
+		    }
+		    
+		    const shareText = encodeURIComponent(`Relatório ${title} - Monalisa Research`);
 		    
 		    return `
 		        <a href="https://api.whatsapp.com/send?text=${shareText}%20${shareUrl}" 
 		           target="_blank" 
 		           class="share-btn share-whatsapp" 
-		           title="Compartilhar no WhatsApp">
+		           title="Compartilhar PDF no WhatsApp">
 		            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
 		                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.149-.67.149-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
 		                <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2.546 20.2A1.01 1.01 0 0 0 3.8 21.454l3.032-.892A9.957 9.957 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18c-1.657 0-3.197-.504-4.473-1.355l-.327-.196-2.4.705.705-2.4-.196-.327A7.956 7.956 0 0 1 4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8z"/>
@@ -1509,12 +1535,12 @@
 		        <a href="https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}" 
 		           target="_blank" 
 		           class="share-btn share-linkedin" 
-		           title="Compartilhar no LinkedIn">
+		           title="Compartilhar PDF no LinkedIn">
 		            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
 		                <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/>
 		            </svg>
 		        </a>
-		        <a href="https://www.facebook.com/sharer/sharer.php?u=${shareUrl}" 
+		        <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}" 
 		           target="_blank" 
 		           class="share-btn share-facebook" 
 		           title="Compartilhar no Facebook">
@@ -1535,14 +1561,27 @@
         
 		// Função para compartilhar no Instagram (apenas copiar link)
 		function shareOnInstagram(type) {
-		    // SEMPRE compartilhar a página principal
-		    const url = window.location.href;
+		    const report = availableReports[type];
+		    const session = getLocalSession();
+		    const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
+		    const isPrivate = report && report.access_level === 'private';
+		    
+		    let url;
+		    
+		    if (isPrivate) {
+		        // Privado: só RESEARCH/ASSESSOR podem compartilhar
+		        if (session && (userAccess.level === 'FULL_ACCESS' || userAccess.level === 'PROFESSIONAL')) {
+		            url = report.file_url;
+		        } else {
+		            return; // Não deveria chegar aqui
+		        }
+		    } else {
+		        // Público: todos podem compartilhar
+		        url = report && report.file_url ? report.file_url : window.location.href;
+		    }
 		    
 		    navigator.clipboard.writeText(url).then(() => {
-		        alert('Link copiado! Cole-o no seu story ou publicação do Instagram.');
-		    }).catch(() => {
-		        // Fallback se clipboard API falhar
-		        alert('Por favor, copie o link: ' + url);
+		        alert('Link do PDF copiado! Cole-o no seu story ou publicação do Instagram.');
 		    });
 		}
         
@@ -3244,6 +3283,7 @@
 </body>
 
 </html>
+
 
 
 
