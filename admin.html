@@ -881,40 +881,48 @@
 	        this.API_KEY = apiKey;
 	    }
 	
-	    async getActiveSubscribers() {
-	        try {
-	            const range = 'Assinantes!A:G';
-	            const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${this.API_KEY}`;
-	            
-	            const response = await fetch(url);
-	            if (!response.ok) throw new Error('Erro ao buscar assinantes');
-	            
-	            const data = await response.json();
-	            const rows = data.values || [];
-	            
-	            const activeSubscribers = [];
-	            
-	            for (let i = 1; i < rows.length; i++) {
-	                const row = rows[i];
-	                const status = (row[4] || '').toLowerCase();
-	                
-	                if (status === 'ativo' && row[2]) { // Status ativo e tem email
-	                    activeSubscribers.push({
-	                        nome: row[0],
-	                        cpf: row[1],
-	                        email: row[2],
-	                        telefone: row[3]
-	                    });
-	                }
-	            }
-	            
-	            return activeSubscribers;
-	            
-	        } catch (error) {
-	            console.error('Erro ao buscar assinantes ativos:', error);
-	            return [];
-	        }
-	    }
+		async getActiveSubscribers() {
+		    try {
+		        const range = 'Assinantes!A:G';
+		        const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${this.API_KEY}`;
+		        
+		        console.log('🔍 Buscando assinantes na URL:', url);
+		        
+		        const response = await fetch(url);
+		        if (!response.ok) {
+		            console.error('❌ Erro na API Google Sheets:', response.status, response.statusText);
+		            throw new Error('Erro ao buscar assinantes');
+		        }
+		        
+		        const data = await response.json();
+		        const rows = data.values || [];
+		        
+		        console.log(`📊 Dados recebidos: ${rows.length} linhas total`);
+		        
+		        const activeSubscribers = [];
+		        
+		        for (let i = 1; i < rows.length; i++) {
+		            const row = rows[i];
+		            const status = (row[4] || '').toLowerCase();
+		            
+		            if (status === 'ativo' && row[2]) {
+		                activeSubscribers.push({
+		                    nome: row[0],
+		                    cpf: row[1],
+		                    email: row[2],
+		                    telefone: row[3]
+		                });
+		            }
+		        }
+		        
+		        console.log(`✅ Assinantes ativos encontrados: ${activeSubscribers.length}`);
+		        return activeSubscribers;
+		        
+		    } catch (error) {
+		        console.error('❌ Erro ao buscar assinantes ativos:', error);
+		        return [];
+		    }
+		}
 	}
 	
 	// Inicializar serviço
@@ -1587,17 +1595,40 @@
 		                console.log(`Enviando notificações para ${activeSubscribers.length} assinantes`);
 		                
 		                // Verificar se emailService tem a função correta
-		                if (emailService && typeof emailService.sendBatchNotifications === 'function') {
-		                    const results = await emailService.sendBatchNotifications(
-		                        activeSubscribers, 
-		                        {
-		                            type: reportData.type,
-		                            title: reportData.title,
-		                            date: reportData.date,
-		                            summary: reportData.summary,
-		                            access_level: reportData.accessLevel
-		                        }
-		                    );
+						if (window.emailService && typeof window.emailService.sendBatchNotifications === 'function') {
+						    console.log('✅ EmailService encontrado, enviando notificações...');
+						    
+						    const results = await window.emailService.sendBatchNotifications(
+						        activeSubscribers, 
+						        {
+						            type: reportData.type,
+						            title: reportData.title,
+						            date: reportData.date,
+						            summary: reportData.summary,
+						            access_level: reportData.accessLevel
+						        }
+						    );
+						    
+						    console.log('📧 Resultados do envio:', results);
+						    
+						    // Mostrar resultado na interface
+						    if (results.successful > 0) {
+						        setTimeout(() => {
+						            alert(`✅ Relatório publicado!\n📧 Emails enviados: ${results.successful} sucessos, ${results.failed} falhas`);
+						        }, 1000);
+						    }
+						} else {
+						    console.error('❌ EmailService não disponível ou método sendBatchNotifications não encontrado');
+						    console.log('EmailService estado:', {
+						        exists: !!window.emailService,
+						        methods: window.emailService ? Object.getOwnPropertyNames(Object.getPrototypeOf(window.emailService)) : 'N/A'
+						    });
+						    
+						    // Avisar ao usuário
+						    setTimeout(() => {
+						        alert('⚠️ Relatório publicado, mas emails não foram enviados.\nVerifique os logs do console.');
+						    }, 1000);
+						}
 		                    
 		                    console.log(`Brevo - Notificações: ${results.successful} sucessos, ${results.failed} falhas`);
 		                    
@@ -1666,21 +1697,20 @@
 		            
 		            // Inicializar EmailService para Brevo
 		            try {
-		                if (typeof BrevoEmailService !== 'undefined') {
-		                    window.emailService = new BrevoEmailService();
-		                    
-		                    // Testar configuração Brevo
-		                    const testResult = await window.emailService.testConfiguration();
-		                    if (testResult.success) {
-		                        console.log('EmailService Brevo inicializado no admin com sucesso');
-		                        console.log('Endpoints disponíveis:', testResult.endpoints);
-		                    } else {
-		                        console.warn('Problema na configuração Brevo:', testResult.message);
-		                        console.warn('Detalhes:', testResult.endpoints);
-		                    }
-		                } else {
-		                    console.warn('BrevoEmailService não encontrado. Verifique se email-service.js foi carregado');
-		                }
+						if (typeof BrevoEmailService !== 'undefined') {
+						    window.emailService = new BrevoEmailService();
+						    console.log('EmailService criado, métodos disponíveis:', Object.getOwnPropertyNames(Object.getPrototypeOf(window.emailService)));
+						    
+						    // Testar configuração
+						    const testResult = await window.emailService.testConfiguration();
+						    if (testResult.success) {
+						        console.log('✅ EmailService Brevo configurado corretamente');
+						    } else {
+						        console.error('❌ Problema no EmailService:', testResult.message);
+						    }
+						} else {
+						    console.error('❌ BrevoEmailService não encontrado. Verifique se email-service.js foi carregado');
+						}
 		            } catch (error) {
 		                console.error('Erro ao inicializar Brevo no admin:', error);
 		                // Não interrompe a aplicação se o email falhar
@@ -1706,5 +1736,6 @@
 </body>
 
 </html>
+
 
 
