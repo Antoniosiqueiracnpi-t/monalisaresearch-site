@@ -2051,10 +2051,20 @@
                         
                         // Verificar se é privado
                         const isPrivate = report.access_level === 'private';
-                        
-                        if (isPrivate) {
-                            privateCount++;
-                            btnEl.innerHTML = '<span class="lock-icon">🔒</span> Ver Relatório';
+
+						if (isPrivate) {
+						    privateCount++;
+						    btnEl.innerHTML = '<span class="lock-icon">🔒</span> Ver Relatório';
+						    
+						    // Adicionar indicador de marca d'água para usuários não-RESEARCH
+						    const session = getLocalSession();
+						    const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
+						    
+						    if (userAccess.hasWatermark && userAccess.level !== 'FULL_ACCESS') {
+						        btnEl.title = 'Relatório com marca d\'água';
+						    } else if (userAccess.level === 'FULL_ACCESS') {
+						        btnEl.title = 'Relatório sem marca d\'água';
+						    }
                             // Esconder compartilhamento para relatórios privados
                             if (shareDiv) {
                                 shareDiv.classList.remove('active');
@@ -2063,19 +2073,29 @@
                                     buttonsContainer.innerHTML = '';
                                 }
                             }
-                        } else {
-                            // Relatório público
-                            publicCount++;
-                            btnEl.innerHTML = 'Ver Relatório';
-                            // Adicionar botões de compartilhamento para relatórios públicos
-                            if (shareDiv) {
-                                const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
-                                if (buttonsContainer) {
-                                    buttonsContainer.innerHTML = createShareButtons(type, strategy.title);
-                                }
-                                shareDiv.classList.add('active');
-                            }
-                        }
+						} else {
+						    // Relatório público
+						    publicCount++;
+						    btnEl.innerHTML = 'Ver Relatório';
+						    
+						    // Adicionar indicador de marca d'água para usuários não-RESEARCH
+						    const session = getLocalSession();
+						    const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
+						    
+						    if (userAccess.hasWatermark && userAccess.level !== 'FULL_ACCESS') {
+						        btnEl.innerHTML = '🔒 Ver Relatório';
+						        btnEl.title = 'Relatório com marca d\'água';
+						    }
+						    
+						    // Adicionar botões de compartilhamento para relatórios públicos
+						    if (shareDiv) {
+						        const buttonsContainer = shareDiv.querySelector('.social-share-buttons');
+						        if (buttonsContainer) {
+						            buttonsContainer.innerHTML = createShareButtons(type, strategy.title);
+						        }
+						        shareDiv.classList.add('active');
+						    }
+						}
                         
                         if (!lastUpdateDate || date > lastUpdateDate) {
                             lastUpdateDate = date;
@@ -2127,37 +2147,45 @@
             }
         }
         
-        // Abrir visualizador PDF
-        function openPDFViewer(type) {
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            loadingOverlay.style.display = 'flex';
-            
-            try {
-                sessionStorage.setItem('currentReportType', type);
-                
-                const width = Math.min(1200, screen.width * 0.9);
-                const height = Math.min(800, screen.height * 0.9);
-                const left = (screen.width - width) / 2;
-                const top = (screen.height - height) / 2;
-                
-                const viewer = window.open(
-                    `pdf-viewer.html?type=${type}`,
-                    'PDFViewer',
-                    `width=${width},height=${height},left=${left},top=${top},` +
-                    'toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes'
-                );
-                
-                if (!viewer) {
-                    alert('Por favor, permita pop-ups para visualizar o relatório');
-                }
-                
-            } catch (error) {
-                console.error('Erro ao abrir visualizador:', error);
-                alert('Erro ao abrir relatório. Tente novamente.');
-            } finally {
-                loadingOverlay.style.display = 'none';
-            }
-        }
+		// Abrir visualizador PDF
+		function openPDFViewer(type) {
+		    const loadingOverlay = document.getElementById('loadingOverlay');
+		    loadingOverlay.style.display = 'flex';
+		    
+		    try {
+		        // Adicionar informações de acesso à sessão
+		        const session = getLocalSession();
+		        const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
+		        const report = availableReports[type];
+		
+		        // Salvar informações de acesso para o PDF viewer
+		        sessionStorage.setItem('userAccessLevel', JSON.stringify(userAccess));
+		        sessionStorage.setItem('reportAccessLevel', report ? report.access_level : 'public');
+		        sessionStorage.setItem('currentReportType', type);
+		        
+		        const width = Math.min(1200, screen.width * 0.9);
+		        const height = Math.min(800, screen.height * 0.9);
+		        const left = (screen.width - width) / 2;
+		        const top = (screen.height - height) / 2;
+		        
+		        const viewer = window.open(
+		            `pdf-viewer.html?type=${type}`,
+		            'PDFViewer',
+		            `width=${width},height=${height},left=${left},top=${top},` +
+		            'toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes'
+		        );
+		        
+		        if (!viewer) {
+		            alert('Por favor, permita pop-ups para visualizar o relatório');
+		        }
+		        
+		    } catch (error) {
+		        console.error('Erro ao abrir visualizador:', error);
+		        alert('Erro ao abrir relatório. Tente novamente.');
+		    } finally {
+		        loadingOverlay.style.display = 'none';
+		    }
+		}
         
         // Visualizar estratégia
 	function viewStrategy(type) {
@@ -2607,7 +2635,7 @@
 		    }
 		}
 
-        // SUBSTITUIR A FUNÇÃO viewStrategy ATUAL POR ESTA:
+		// Verificar acesso ao relatório com sistema de níveis
 		async function checkReportAccess(type) {
 		    const report = availableReports[type];
 		    
@@ -2616,20 +2644,66 @@
 		        return;
 		    }
 		    
-		    // Se for público, abrir direto
+		    // Se for público, verificar se usuário pode acessar
 		    if (report.access_level !== 'private') {
+		        // Relatórios públicos são acessíveis a todos os níveis
 		        openPDFViewer(type);
 		        return;
 		    }
 		    
-		    // Se for privado, verificar se tem sessão ativa LOCAL
+		    // Para relatórios privados, verificar autenticação e nível de acesso
 		    const localSession = getLocalSession();
+		    
 		    if (localSession && isLocalSessionValid(localSession)) {
-		        openPDFViewer(type);
-		        return;
+		        // Usuário tem sessão válida, verificar nível de acesso
+		        const userAccess = localSession.accessLevel || getUserAccessLevel('INVESTIDOR');
+		        
+		        if (canAccessReport(report, userAccess)) {
+		            openPDFViewer(type);
+		            return;
+		        } else {
+		            // Usuário autenticado mas sem nível suficiente
+		            let message = 'Seu nível de acesso não permite visualizar este relatório.';
+		            
+		            switch(userAccess.level) {
+		                case 'LIMITED':
+		                    message = 'Este relatório é exclusivo para assinantes. Entre em contato para upgrade.';
+		                    break;
+		                case 'BASIC':
+		                    message = 'Este relatório é exclusivo para assessores e pesquisadores.';
+		                    break;
+		                default:
+		                    message = 'Acesso negado para este relatório.';
+		            }
+		            
+		            alert(message);
+		            return;
+		        }
 		    }
 		    
-		    // Se não tem sessão local válida, pedir CPF
+		    // Se não tem sessão local válida, verificar se tem sessão no servidor
+		    try {
+		        const session = getLocalSession();
+		        if (session && session.cpf) {
+		            console.log('Verificando sessão existente no servidor...');
+		            const existingSession = await checkExistingSession(session.cpf);
+		            
+		            if (existingSession.hasActiveSession) {
+		                console.log('Sessão válida encontrada no servidor, restaurando...');
+		                const restored = await restoreServerSession(existingSession.sessionData, session.cpf);
+		                
+		                if (restored) {
+		                    // Tentar novamente após restaurar sessão
+		                    setTimeout(() => checkReportAccess(type), 100);
+		                    return;
+		                }
+		            }
+		        }
+		    } catch (error) {
+		        console.error('Erro ao verificar sessão no servidor:', error);
+		    }
+		    
+		    // Se chegou até aqui, precisa de autenticação
 		    pendingReportType = type;
 		    showCPFAuthModal();
 		}
@@ -3122,6 +3196,7 @@
 </body>
 
 </html>
+
 
 
 
