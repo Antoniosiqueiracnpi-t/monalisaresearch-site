@@ -2119,17 +2119,17 @@
 				
 				        if (isPrivate) {
 				            privateCount++;
-				            
-				            // Configurar botão baseado no nível de acesso
-				            if (userAccess.level === 'FULL_ACCESS') {
-				                // RESEARCH: sem marca d'água
-				                btnEl.innerHTML = 'Ver Relatório';
-				                btnEl.title = 'Relatório sem marca d\'água';
-				            } else {
-				                // ASSESSOR/INVESTIDOR: com marca d'água
-				                btnEl.innerHTML = '<span class="lock-icon">🔒</span> Ver Relatório';
-				                btnEl.title = 'Relatório com marca d\'água';
-				            }
+							
+							// Configurar botão baseado no nível de acesso
+							if (userAccess.level === 'FULL_ACCESS') {
+							    // RESEARCH: sem marca d'água
+							    btnEl.innerHTML = 'Ver Relatório';
+							    btnEl.title = 'Relatório sem marca d\'água';
+							} else {
+							    // ASSESSOR/INVESTIDOR: com marca d'água
+							    btnEl.innerHTML = '🔒 Ver Relatório';
+							    btnEl.title = 'Relatório com marca d\'água';
+							}
 				            
 				            // Compartilhamento para relatórios privados
 				            if (shareDiv) {
@@ -3204,6 +3204,7 @@
 </body>
 
 </html>
+
 
 
 
