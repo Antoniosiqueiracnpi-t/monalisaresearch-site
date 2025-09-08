@@ -1028,73 +1028,7 @@
             }
         }
 		
-		/* Ajustes responsivos para o Tooltip de Compartilhamento */
-		@media (max-width: 768px) {
-		    .share-tooltip {
-		        position: fixed;
-		        bottom: auto;
-		        top: 50%;
-		        left: 50%;
-		        transform: translate(-50%, -50%);
-		        margin-bottom: 0;
-		        padding: 15px;
-		        gap: 12px;
-		        background: rgba(20, 25, 40, 0.95);
-		        backdrop-filter: blur(10px);
-		        box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.5);
-		    }
-		    
-		    .share-tooltip.active {
-		        animation: fadeIn 0.2s ease;
-		    }
-		    
-		    .share-tooltip::after {
-		        display: none;
-		    }
-		    
-		    .share-tooltip .share-btn {
-		        width: 45px;
-		        height: 45px;
-		        font-size: 20px;
-		    }
-		    
-		    @keyframes fadeIn {
-		        from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
-		        to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-		    }
-		}
-		
-		@media (max-width: 480px) {
-		    .share-tooltip {
-		        width: 90%;
-		        max-width: 280px;
-		        flex-wrap: wrap;
-		        justify-content: center;
-		    }
-		    
-		    .share-tooltip .share-btn {
-		        width: 50px;
-		        height: 50px;
-		        font-size: 22px;
-		    }
-		}
-		
-		/* Ajuste para landscape em mobile */
-		@media (max-height: 500px) and (orientation: landscape) {
-		    .share-tooltip {
-		        top: 20px;
-		        transform: translateX(-50%);
-		        gap: 8px;
-		        padding: 10px;
-		    }
-		    
-		    .share-tooltip .share-btn {
-		        width: 40px;
-		        height: 40px;
-		        font-size: 18px;
-		    }
-		}
-		
+	
 
         /* ADICIONAR NO FINAL DO CSS EXISTENTE */
         .auth-step {
@@ -1557,89 +1491,106 @@
             return false;
         }
 
-		// Função para criar botões de compartilhamento
+		// Função para criar botões de compartilhamento - MANTER COMO ESTÁ
 		function createShareButtons(type, title) {
 		    const report = availableReports[type];
 		    const session = getLocalSession();
 		    const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
 		    
+		    // Verificar se é relatório privado
 		    const isPrivate = report && report.access_level === 'private';
 		    
-		    let canShare = false;
+		    // Determinar URL para compartilhar
+		    let shareUrl;
+		    
 		    if (isPrivate) {
+		        // RELATÓRIO PRIVADO
 		        if (session && (userAccess.level === 'FULL_ACCESS' || userAccess.level === 'PROFESSIONAL')) {
-		            canShare = true;
+		            // RESEARCH ou ASSESSOR: criar link de compartilhamento
+		            const pdfUrl = encodeURIComponent(report.file_url);
+		            const shareTitle = encodeURIComponent(title);
+		            // Usar página intermediária para melhor preview
+		            shareUrl = encodeURIComponent(`${window.location.origin}/share.html?pdf=${pdfUrl}&title=${shareTitle}`);
+		        } else {
+		            // INVESTIDOR ou não logado: NÃO PODE compartilhar privado
+		            return '';
 		        }
 		    } else {
-		        canShare = true;
+		        // RELATÓRIO PÚBLICO: todos podem compartilhar
+		        if (report && report.file_url) {
+		            const pdfUrl = encodeURIComponent(report.file_url);
+		            const shareTitle = encodeURIComponent(title);
+		            // Usar página intermediária para melhor preview
+		            shareUrl = encodeURIComponent(`${window.location.origin}/share.html?pdf=${pdfUrl}&title=${shareTitle}`);
+		        } else {
+		            shareUrl = encodeURIComponent(window.location.href);
+		        }
 		    }
 		    
-		    if (!canShare) return '';
-		    
-		    let shareUrl;
-		    if (report && report.file_url) {
-		        const pdfUrl = encodeURIComponent(report.file_url);
-		        const shareTitle = encodeURIComponent(title);
-		        shareUrl = encodeURIComponent(`${window.location.origin}/share.html?pdf=${pdfUrl}&title=${shareTitle}`);
-		    } else {
-		        shareUrl = encodeURIComponent(window.location.href);
-		    }
-		    
-		    const shareText = encodeURIComponent(`📊 ${title} - Monalisa Research`);
+		    const shareText = encodeURIComponent(`📊 Relatório ${title} - Monalisa Research\n\n💡 Análise quantitativa de investimentos com IA`);
 		    
 		    return `
-		        <div style="position: relative;">
-		            <button onclick="toggleShareTooltip(event, '${type}')" 
-		                    class="share-btn"
-		                    style="background: linear-gradient(135deg, #4A90E2, #7B68EE); 
-		                           padding: 8px 16px; 
-		                           border-radius: 20px;
-		                           border: none;
-		                           color: white;
-		                           cursor: pointer;
-		                           font-size: 14px;">
-		                📤 Compartilhar
-		            </button>
-		            <div class="share-tooltip" id="tooltip-${type}">
-		                <a href="https://api.whatsapp.com/send?text=${shareText}%20${shareUrl}" 
-		                   target="_blank" 
-		                   class="share-btn share-whatsapp">📱</a>
-		                <a href="https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}" 
-		                   target="_blank" 
-		                   class="share-btn share-linkedin">💼</a>
-		                <a href="https://www.facebook.com/sharer/sharer.php?u=${shareUrl}" 
-		                   target="_blank" 
-		                   class="share-btn share-facebook">👍</a>
-		                <button onclick="navigator.clipboard.writeText(decodeURIComponent('${shareUrl}')).then(() => alert('Link copiado!'))" 
-		                        class="share-btn"
-		                        style="background: #9B59B6;">📋</button>
-		            </div>
-		        </div>
+		        <a href="https://api.whatsapp.com/send?text=${shareText}%20${shareUrl}" 
+		           target="_blank" 
+		           class="share-btn share-whatsapp" 
+		           title="Compartilhar no WhatsApp">
+		            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+		                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.149-.67.149-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+		                <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2.546 20.2A1.01 1.01 0 0 0 3.8 21.454l3.032-.892A9.957 9.957 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18c-1.657 0-3.197-.504-4.473-1.355l-.327-.196-2.4.705.705-2.4-.196-.327A7.956 7.956 0 0 1 4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8z"/>
+		            </svg>
+		        </a>
+		        <a href="https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}" 
+		           target="_blank" 
+		           class="share-btn share-linkedin" 
+		           title="Compartilhar no LinkedIn">
+		            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+		                <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/>
+		            </svg>
+		        </a>
+		        <a href="https://www.facebook.com/sharer/sharer.php?u=${shareUrl}" 
+		           target="_blank" 
+		           class="share-btn share-facebook" 
+		           title="Compartilhar no Facebook">
+		            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+		                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+		            </svg>
+		        </a>
+		        <a href="#" 
+		           onclick="shareOnInstagram('${type}'); return false;" 
+		           class="share-btn share-instagram" 
+		           title="Copiar link para Instagram">
+		            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+		                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1 1 12.324 0 6.162 6.162 0 0 1-12.324 0zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm4.965-10.405a1.44 1.44 0 1 1 2.881.001 1.44 1.44 0 0 1-2.881-.001z"/>
+		            </svg>
+		        </a>
 		    `;
 		}
         
-		// Adicionar função para toggle do tooltip
-		function toggleShareTooltip(event, type) {
-		    event.stopPropagation();
+		// Função para compartilhar no Instagram (apenas copiar link)
+		function shareOnInstagram(type) {
+		    const report = availableReports[type];
+		    const session = getLocalSession();
+		    const userAccess = session ? session.accessLevel : getUserAccessLevel('INVESTIDOR');
+		    const isPrivate = report && report.access_level === 'private';
 		    
-		    // Fechar outros tooltips abertos
-		    document.querySelectorAll('.share-tooltip').forEach(tooltip => {
-		        if (tooltip.id !== `tooltip-${type}`) {
-		            tooltip.classList.remove('active');
+		    let url;
+		    
+		    if (isPrivate) {
+		        // Privado: só RESEARCH/ASSESSOR podem compartilhar
+		        if (session && (userAccess.level === 'FULL_ACCESS' || userAccess.level === 'PROFESSIONAL')) {
+		            url = report.file_url;
+		        } else {
+		            return; // Não deveria chegar aqui
 		        }
-		    });
+		    } else {
+		        // Público: todos podem compartilhar
+		        url = report && report.file_url ? report.file_url : window.location.href;
+		    }
 		    
-		    // Toggle do tooltip atual
-		    const tooltip = document.getElementById(`tooltip-${type}`);
-		    tooltip.classList.toggle('active');
-		}
-		
-		// Fechar tooltips ao clicar fora
-		document.addEventListener('click', function() {
-		    document.querySelectorAll('.share-tooltip').forEach(tooltip => {
-		        tooltip.classList.remove('active');
+		    navigator.clipboard.writeText(url).then(() => {
+		        alert('Link do PDF copiado! Cole-o no seu story ou publicação do Instagram.');
 		    });
-		});
+		}
         
         // Função para buscar dados JSON das posições
         async function getJSONPositions() {
@@ -3339,6 +3290,7 @@
 </body>
 
 </html>
+
 
 
 
