@@ -888,16 +888,16 @@
 		        for (let i = 1; i < rows.length; i++) {
 		            const row = rows[i];
 		            
-		            if (!row || row.length < 6) continue; // Precisa pelo menos até coluna F (Status)
+		            if (!row || row.length < 5) continue; // Precisa pelo menos até coluna E (Status)
 		            
 		            const nome = row[0] || '';
 		            const cpf = row[1] || '';
 		            const email = row[2] || '';
 		            const telefone = row[3] || '';
-		            const tipo = row[4] || ''; // RESEARCH ou ASSESSOR
-		            const status = row[5] || ''; // Status agora está na coluna F (índice 5)
+		            const status = row[4] || ''; // STATUS está na coluna E (índice 4)
+		            const tipo = row[5] || ''; // TIPO está na coluna F (índice 5)
 		            
-		            console.log(`Linha ${i+1}: ${nome} | ${email} | Tipo: ${tipo} | Status: "${status}"`);
+		            console.log(`Linha ${i+1}: ${nome} | ${email} | Status: "${status}" | Tipo: ${tipo}`);
 		            
 		            // Verificar se está ativo e tem email válido
 		            if (status.toLowerCase().trim() === 'ativo' && email.includes('@')) {
@@ -906,7 +906,7 @@
 		                    cpf: cpf.trim(),
 		                    email: email.trim(),
 		                    telefone: telefone.trim(),
-		                    tipo: tipo.trim() // Incluindo o tipo no retorno
+		                    tipo: tipo.trim()
 		                });
 		                
 		                console.log(`✅ Assinante ativo adicionado: ${nome} (${email}) - Tipo: ${tipo}`);
@@ -920,7 +920,7 @@
 		        console.error('Erro ao buscar assinantes ativos:', error);
 		        return [];
 		    }
-	    }
+		}
 	}
 	
 	// Inicializar serviço
@@ -1726,6 +1726,7 @@
 </body>
 
 </html>
+
 
 
 
