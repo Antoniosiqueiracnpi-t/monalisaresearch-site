@@ -206,7 +206,7 @@ class BrevoEmailService {
             try {
                 const result = await this.sendReportNotification(
                     subscriber.email,
-                    subscriber.nome || subscriber.name,
+                    subscriber.nome || subscriber.name || 'Assinante',
                     reportInfo
                 );
 
@@ -337,4 +337,5 @@ class BrevoEmailService {
 if (typeof window !== 'undefined') {
     window.BrevoEmailService = BrevoEmailService;
 }
+
 
