@@ -873,7 +873,12 @@
 	
 		async getActiveSubscribers() {
 		    try {
-		        const range = 'Assinantes!A:H';
+		        if (!this.API_KEY) {
+		            console.error("❌ Google Sheets API KEY não inicializada!");
+		            return [];
+		        }
+		
+		        const range = `${this.SHEET_NAME}!A:H`;
 		        const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${this.API_KEY}`;
 		        
 		        const response = await fetch(url);
@@ -888,21 +893,21 @@
 		        // Começar da linha 2 (índice 1) para pular o cabeçalho
 		        for (let i = 1; i < rows.length; i++) {
 		            const row = rows[i];
-		            if (!row || row.length < 5) continue; // Precisa ter pelo menos até coluna E (Status)
-		            
-		            const nome = row[0] || '';
-		            const cpf = row[1] || '';
-		            let email = row[2] || '';
-		            const telefone = row[3] || '';
-		            const status = row[4] || '';   // Coluna E
-		            const tipo = row[5] || '';     // Coluna F
-		            const dataInicio = row[6] || ''; // Coluna G
-		            const dataFim = row[7] || '';    // Coluna H
+		            if (!row || row.length < 8) continue; 
+		
+		            const nome = row[0] || '';        // Coluna A
+		            const cpf = row[1] || '';         // Coluna B
+		            let email = row[2] || '';         // Coluna C
+		            const telefone = row[3] || '';    // Coluna D
+		            const tipo = row[4] || '';        // Coluna E
+		            const status = row[5] || '';      // Coluna F
+		            const dataInicio = row[6] || '';  // Coluna G
+		            const dataFim = row[7] || '';     // Coluna H
 		
 		            // Normalizar e-mail
 		            email = email.trim().replace(/['"]+/g, '');
 		
-		            // Função para converter dd/mm/yyyy → Date
+		            // Converter datas (dd/mm/yyyy → Date)
 		            const parseDate = (d) => {
 		                if (!d) return null;
 		                const parts = d.split('/');
@@ -916,9 +921,9 @@
 		            const inicioDate = parseDate(dataInicio);
 		            const fimDate = parseDate(dataFim);
 		
-		            console.log(`Linha ${i+1}: ${nome} | ${email} | Status: "${status}" | Tipo: ${tipo} | Início: ${dataInicio} | Fim: ${dataFim}`);
+		            console.log(`Linha ${i+1}: ${nome} | ${email} | Tipo: ${tipo} | Status: "${status}" | Início: ${dataInicio} | Fim: ${dataFim}`);
 		
-		            // Verificar se está ativo, email válido e dentro do período da assinatura
+		            // Verificar se está ativo e dentro do período de assinatura
 		            if (
 		                status.toLowerCase().trim() === 'ativo' &&
 		                email.includes('@') &&
@@ -1749,6 +1754,7 @@
 </body>
 
 </html>
+
 
 
 
