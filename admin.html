@@ -883,39 +883,62 @@
 		        const rows = data.values || [];
 		        
 		        const activeSubscribers = [];
-		        
+		        const hoje = new Date();
+		
 		        // Começar da linha 2 (índice 1) para pular o cabeçalho
 		        for (let i = 1; i < rows.length; i++) {
 		            const row = rows[i];
-		            
-		            if (!row || row.length < 5) continue; // Precisa pelo menos até coluna E (Status)
+		            if (!row || row.length < 5) continue; // Precisa ter pelo menos até coluna E (Status)
 		            
 		            const nome = row[0] || '';
 		            const cpf = row[1] || '';
-		            const email = row[2] || '';
+		            let email = row[2] || '';
 		            const telefone = row[3] || '';
-		            const status = row[4] || ''; // STATUS está na coluna E (índice 4)
-		            const tipo = row[5] || ''; // TIPO está na coluna F (índice 5)
-		            
-		            console.log(`Linha ${i+1}: ${nome} | ${email} | Status: "${status}" | Tipo: ${tipo}`);
-		            
-		            // Verificar se está ativo e tem email válido
-		            if (status.toLowerCase().trim() === 'ativo' && email.includes('@')) {
+		            const status = row[4] || '';   // Coluna E
+		            const tipo = row[5] || '';     // Coluna F
+		            const dataInicio = row[6] || ''; // Coluna G
+		            const dataFim = row[7] || '';    // Coluna H
+		
+		            // Normalizar e-mail
+		            email = email.trim().replace(/['"]+/g, '');
+		
+		            // Função para converter dd/mm/yyyy → Date
+		            const parseDate = (d) => {
+		                if (!d) return null;
+		                const parts = d.split('/');
+		                if (parts.length === 3) {
+		                    const [dia, mes, ano] = parts;
+		                    return new Date(`${ano}-${mes}-${dia}`);
+		                }
+		                return new Date(d);
+		            };
+		
+		            const inicioDate = parseDate(dataInicio);
+		            const fimDate = parseDate(dataFim);
+		
+		            console.log(`Linha ${i+1}: ${nome} | ${email} | Status: "${status}" | Tipo: ${tipo} | Início: ${dataInicio} | Fim: ${dataFim}`);
+		
+		            // Verificar se está ativo, email válido e dentro do período da assinatura
+		            if (
+		                status.toLowerCase().trim() === 'ativo' &&
+		                email.includes('@') &&
+		                (!inicioDate || hoje >= inicioDate) &&
+		                (!fimDate || hoje <= fimDate)
+		            ) {
 		                activeSubscribers.push({
 		                    nome: nome.trim(),
 		                    cpf: cpf.trim(),
-		                    email: email.trim(),
+		                    email: email,
 		                    telefone: telefone.trim(),
 		                    tipo: tipo.trim()
 		                });
-		                
 		                console.log(`✅ Assinante ativo adicionado: ${nome} (${email}) - Tipo: ${tipo}`);
 		            }
 		        }
-		        
+		
 		        console.log(`Total de assinantes ativos encontrados: ${activeSubscribers.length}`);
 		        return activeSubscribers;
-		        
+		
 		    } catch (error) {
 		        console.error('Erro ao buscar assinantes ativos:', error);
 		        return [];
@@ -1726,6 +1749,7 @@
 </body>
 
 </html>
+
 
 
 
