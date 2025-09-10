@@ -873,10 +873,22 @@
 	
 		async getActiveSubscribers() {
 		    try {
-		        if (!this.API_KEY) {
-		            console.error("❌ Google Sheets API KEY não inicializada!");
-		            return [];
-		        }
+				if (!this.API_KEY) {
+				    console.error("❌ Google Sheets API KEY não inicializada!");
+				    // Tentar recuperar como fallback
+				    if (typeof GOOGLE_SHEETS_API_KEY !== 'undefined') {
+				        this.API_KEY = GOOGLE_SHEETS_API_KEY;
+				        console.log("✅ API Key recuperada como fallback direto");
+				    } else {
+				        this.API_KEY = 'AIzaSyDfXfFTzgEIP5CvBi-xaRiVty_GkvI7Tq8';
+				        console.log("✅ API Key definida como fallback hardcoded");
+				    }
+				    
+				    // Se ainda não conseguiu, retornar vazio
+				    if (!this.API_KEY) {
+				        return [];
+				    }
+				}
 		
 		        const range = `${this.SHEET_NAME}!A:H`;
 		        const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${this.API_KEY}`;
@@ -1760,15 +1772,29 @@
 		        
 		        try {
 		            // Inicializar Google Sheets Service
-		            sheetsService.initialize(window.GOOGLE_SHEETS_API_KEY || GOOGLE_SHEETS_API_KEY);
-
-					// Verificar se a API Key foi carregada corretamente
-					if (!window.GOOGLE_SHEETS_API_KEY && !GOOGLE_SHEETS_API_KEY) {
-					    console.error('⚠️ GOOGLE_SHEETS_API_KEY não encontrada. Verifique se config.js foi carregado.');
-					    alert('Erro de configuração: Google Sheets API não disponível.\nAs notificações por email não funcionarão.');
+					// Verificar disponibilidade da API Key com múltiplas verificações
+					let apiKey = null;
+					
+					// Tentar acessar de diferentes formas
+					if (typeof GOOGLE_SHEETS_API_KEY !== 'undefined') {
+					    apiKey = GOOGLE_SHEETS_API_KEY;
+					    console.log('✅ API Key encontrada diretamente:', apiKey.substring(0, 20) + '...');
+					} else if (typeof window.GOOGLE_SHEETS_API_KEY !== 'undefined') {
+					    apiKey = window.GOOGLE_SHEETS_API_KEY;
+					    console.log('✅ API Key encontrada em window:', apiKey.substring(0, 20) + '...');
 					} else {
-					    console.log('✅ Google Sheets API Key carregada com sucesso');
-					}					
+					    // Fallback: tentar acessar diretamente a string (caso o config.js não tenha carregado)
+					    apiKey = 'AIzaSyDfXfFTzgEIP5CvBi-xaRiVty_GkvI7Tq8';
+					    console.warn('⚠️ Usando API Key de fallback');
+					}
+					
+					if (apiKey) {
+					    sheetsService.initialize(apiKey);
+					    console.log('✅ Google Sheets Service inicializado com sucesso');
+					} else {
+					    console.error('❌ GOOGLE_SHEETS_API_KEY não encontrada em nenhum local');
+					    alert('Erro crítico: Google Sheets API não disponível.\nNotificações por email não funcionarão.');
+					}				
 		            
 		            // Carregar dados existentes
 		            await loadReportsList();
@@ -1817,6 +1843,7 @@
 </body>
 
 </html>
+
 
 
 
