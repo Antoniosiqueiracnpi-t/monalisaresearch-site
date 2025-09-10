@@ -208,7 +208,7 @@ Para cancelar o recebimento, responda este email solicitando descadastro.
                             
                             <!-- Botão de acesso -->
                             <div style="text-align: center; margin-top: 20px;">
-                              <a href="https://monalisaresearch.com.br" 
+                              <a href="https://monalisaresearch.netlify.app/" 
                                  style="display: inline-block; background-color: ${reportColor}; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; font-family: Arial, Helvetica, sans-serif;">
                                 Acessar Relatório
                               </a>
