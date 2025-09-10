@@ -1760,7 +1760,15 @@
 		        
 		        try {
 		            // Inicializar Google Sheets Service
-		            sheetsService.initialize(GOOGLE_SHEETS_API_KEY);
+		            sheetsService.initialize(window.GOOGLE_SHEETS_API_KEY || GOOGLE_SHEETS_API_KEY);
+
+					// Verificar se a API Key foi carregada corretamente
+					if (!window.GOOGLE_SHEETS_API_KEY && !GOOGLE_SHEETS_API_KEY) {
+					    console.error('⚠️ GOOGLE_SHEETS_API_KEY não encontrada. Verifique se config.js foi carregado.');
+					    alert('Erro de configuração: Google Sheets API não disponível.\nAs notificações por email não funcionarão.');
+					} else {
+					    console.log('✅ Google Sheets API Key carregada com sucesso');
+					}					
 		            
 		            // Carregar dados existentes
 		            await loadReportsList();
@@ -1809,6 +1817,7 @@
 </body>
 
 </html>
+
 
 
 
