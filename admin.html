@@ -641,9 +641,6 @@
             gap: 10px;
             align-items: center;
         }
-
-
-
     </style>
     
     <!-- Supabase -->
@@ -1095,6 +1092,7 @@
                 
                 await loadReportsList();
                 loadAccessCode();
+                await loadJSONFilesList();
             } else {
                 const newAttempts = attempts + 1;
                 localStorage.setItem('loginAttempts', newAttempts.toString());
@@ -1253,205 +1251,40 @@
                 };
                 
                 if (!reports || reports.length === 0) {
-                    container.innerHTML = '<p style="color: #888;">Nenhum relatório publicado</p>';
-                    return;
-                }
-                
-                container.innerHTML = reports.map(report => `
-                    <div class="report-item">
-                        <div class="report-info">
-                            <div class="report-type">
-                                ${typeNames[report.type] || report.type}
-                                ${report.file_size ? `(${(report.file_size / 1024 / 1024).toFixed(1)} MB)` : ''}
-                                <span class="access-badge badge-${report.access_level || 'public'}">
-                                    ${report.access_level === 'private' ? '🔒 Privado' : '🌍 Público'}
-                                </span>
-                            </div>
-                            <div class="report-date">
-                                📅 ${new Date(report.updated_at).toLocaleDateString('pt-BR')}
-                            </div>
-                        </div>
-                        <div class="report-actions">
-                            <button class="btn-generate" onclick="toggleAccess('${report.id}', '${report.access_level}')">
-                                ${report.access_level === 'private' ? 'Tornar Público' : 'Tornar Privado'}
-                            </button>
-                            <button class="btn-delete" onclick="removeReport('${report.id}', '${report.file_url}')">
-                                🗑️ Excluir
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
-                
-            } catch (error) {
-                console.error('Erro ao carregar lista:', error);
-            }
-        }
-
-
-        // Manipular seleção de estratégia JSON
-        document.addEventListener('DOMContentLoaded', function() {
-            const strategyOptions = document.querySelectorAll('.json-strategy-option');
-            const radioInputs = document.querySelectorAll('input[name="jsonStrategy"]');
-            
-            strategyOptions.forEach((option, index) => {
-                option.addEventListener('click', function() {
-                    strategyOptions.forEach(opt => opt.classList.remove('selected'));
-                    this.classList.add('selected');
-                    radioInputs[index].checked = true;
-                });
-            });
-            
-            radioInputs.forEach((radio, index) => {
-                radio.addEventListener('change', function() {
-                    strategyOptions.forEach(opt => opt.classList.remove('selected'));
-                    if (this.checked) {
-                        strategyOptions[index].classList.add('selected');
+                    container.innerHTML = jsonFiles.map(file => {
+                    let metadataInfo = '';
+                    if (file.strategy === 'opcoes' && file.metadata) {
+                        const meta = file.metadata;
+                        metadataInfo = `<div style="font-size: 0.8rem; color: #666; margin-top: 3px;">
+                            ${meta.total_ativos || 0} ativos • ${meta.total_estrategias || 0} estratégias
+                            ${meta.total_investido ? ` • R$ ${meta.total_investido.toFixed(2)} investido` : ''}
+                        </div>`;
                     }
-                });
-            });
-        });
-
-        // Manipular arquivo JSON
-        document.getElementById('jsonFile').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const label = document.getElementById('jsonFileLabel');
-            const text = label.querySelector('.json-file-upload-text');
-            
-            if (file) {
-                const sizeMB = (file.size / 1024 / 1024).toFixed(2);
-                const MAX_SIZE = 5 * 1024 * 1024;
-                
-                if (file.size > MAX_SIZE) {
-                    alert(`Arquivo muito grande! Máximo: 5MB\nSeu arquivo: ${sizeMB}MB`);
-                    this.value = '';
-                    label.classList.remove('json-file-selected');
-                    text.innerHTML = '📄 Clique ou arraste o JSON aqui<small>Aceita apenas arquivos JSON até 5MB</small>';
-                    return;
-                }
-                
-                // Validar se é JSON válido
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    try {
-                        JSON.parse(event.target.result);
-                        label.classList.add('json-file-selected');
-                        text.innerHTML = `✅ ${file.name}<small>${sizeMB} MB - JSON válido</small>`;
-                    } catch (error) {
-                        alert('Arquivo JSON inválido!');
-                        document.getElementById('jsonFile').value = '';
-                        label.classList.remove('json-file-selected');
-                        text.innerHTML = '📄 Clique ou arraste o JSON aqui<small>Aceita apenas arquivos JSON até 5MB</small>';
-                    }
-                };
-                reader.readAsText(file);
-            } else {
-                label.classList.remove('json-file-selected');
-                text.innerHTML = '📄 Clique ou arraste o JSON aqui<small>Aceita apenas arquivos JSON até 5MB</small>';
-            }
-        });
-
-        // Upload de JSON para Supabase Storage
-        async function uploadJSON(file, strategy) {
-            const fileName = `positions_${strategy}_${Date.now()}.json`;
-            
-            const { data, error } = await supabase.storage
-                .from('json-positions')
-                .upload(fileName, file, {
-                    cacheControl: '3600',
-                    upsert: true
-                });
-            
-            if (error) {
-                console.error('Erro no upload JSON:', error);
-                throw error;
-            }
-            
-            const { data: urlData } = supabase.storage
-                .from('json-positions')
-                .getPublicUrl(fileName);
-            
-            return urlData.publicUrl;
-        }
-
-        // Salvar dados JSON no Supabase
-        async function saveJSONPositions(strategy, file) {
-            try {
-                const fileUrl = await uploadJSON(file, strategy);
-                
-                const jsonData = {
-                    strategy: strategy,
-                    file_url: fileUrl,
-                    file_name: file.name,
-                    file_size: file.size,
-                    updated_at: new Date().toISOString()
-                };
-                
-                // Deletar existente da mesma estratégia
-                await supabase
-                    .from('json_positions')
-                    .delete()
-                    .eq('strategy', strategy);
-                
-                // Inserir novo
-                const { data, error } = await supabase
-                    .from('json_positions')
-                    .insert(jsonData);
-                
-                if (error) throw error;
-                
-                return true;
-                
-            } catch (error) {
-                console.error('Erro ao salvar JSON:', error);
-                throw error;
-            }
-        }
-
-        // Listar arquivos JSON
-        async function loadJSONFilesList() {
-            try {
-                const { data: jsonFiles, error } = await supabase
-                    .from('json_positions')
-                    .select('*')
-                    .order('updated_at', { ascending: false });
-                
-                if (error) throw error;
-                
-                const container = document.getElementById('jsonFilesList');
-                
-                const strategyNames = {
-                    'quant': 'Monalisa Quant',
-                    'opcoes': 'Monalisa Opções',
-                    'longshort': 'Monalisa Long & Short'
-                };
-                
-                if (!jsonFiles || jsonFiles.length === 0) {
-                    container.innerHTML = '<p style="color: #888;">Nenhum arquivo JSON carregado</p>';
-                    return;
-                }
-                
-                container.innerHTML = jsonFiles.map(file => `
-                    <div class="json-file-item">
-                        <div class="json-file-info">
-                            <div class="json-file-strategy">
-                                ${strategyNames[file.strategy] || file.strategy}
-                                ${file.file_size ? `(${(file.file_size / 1024).toFixed(1)} KB)` : ''}
+                    
+                    return `
+                        <div class="json-file-item">
+                            <div class="json-file-info">
+                                <div class="json-file-strategy">
+                                    ${strategyNames[file.strategy] || file.strategy}
+                                    ${file.file_size ? `(${(file.file_size / 1024).toFixed(1)} KB)` : ''}
+                                </div>
+                                <div class="json-file-date">
+                                    📅 ${new Date(file.updated_at).toLocaleDateString('pt-BR')} às 
+                                    ${new Date(file.updated_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}
+                                </div>
+                                ${metadataInfo}
                             </div>
-                            <div class="json-file-date">
-                                📅 ${new Date(file.updated_at).toLocaleDateString('pt-BR')} às 
-                                ${new Date(file.updated_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}
+                            <div class="json-file-actions">
+                                <button class="btn-generate" onclick="viewJSONFile('${file.file_url}')">
+                                    👁️ Visualizar
+                                </button>
+                                <button class="btn-delete" onclick="removeJSONFile('${file.id}', '${file.file_url}')">
+                                    🗑️ Excluir
+                                </button>
                             </div>
                         </div>
-                        <div class="json-file-actions">
-                            <button class="btn-generate" onclick="viewJSONFile('${file.file_url}')">
-                                👁️ Visualizar
-                            </button>
-                            <button class="btn-delete" onclick="removeJSONFile('${file.id}', '${file.file_url}')">
-                                🗑️ Excluir
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
                 
             } catch (error) {
                 console.error('Erro ao carregar lista JSON:', error);
@@ -1675,7 +1508,7 @@
 		        };
 		        
 		        await saveReport(reportData, file);
-		
+
 		        // Notificar via Brevo sobre novo relatório
 		        try {
 		            console.log('Iniciando notificações Brevo...');
@@ -1842,15 +1675,378 @@
     </script>
 </body>
 
-</html>
+</html>.innerHTML = '<p style="color: #888;">Nenhum relatório publicado</p>';
+                    return;
+                }
+                
+                container.innerHTML = reports.map(report => `
+                    <div class="report-item">
+                        <div class="report-info">
+                            <div class="report-type">
+                                ${typeNames[report.type] || report.type}
+                                ${report.file_size ? `(${(report.file_size / 1024 / 1024).toFixed(1)} MB)` : ''}
+                                <span class="access-badge badge-${report.access_level || 'public'}">
+                                    ${report.access_level === 'private' ? '🔒 Privado' : '🌍 Público'}
+                                </span>
+                            </div>
+                            <div class="report-date">
+                                📅 ${new Date(report.updated_at).toLocaleDateString('pt-BR')}
+                            </div>
+                        </div>
+                        <div class="report-actions">
+                            <button class="btn-generate" onclick="toggleAccess('${report.id}', '${report.access_level}')">
+                                ${report.access_level === 'private' ? 'Tornar Público' : 'Tornar Privado'}
+                            </button>
+                            <button class="btn-delete" onclick="removeReport('${report.id}', '${report.file_url}')">
+                                🗑️ Excluir
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Erro ao carregar lista:', error);
+            }
+        }
 
+        // Função para validar estrutura do JSON da Monalisa Opções
+        function validateMonalisaOpcoesJSON(jsonData) {
+            try {
+                // Verificar estrutura básica
+                if (!jsonData.metadata || !jsonData.posicoes_por_ativo) {
+                    return { valid: false, error: 'Estrutura JSON inválida - faltam campos obrigatórios' };
+                }
 
+                // Verificar metadata
+                const metadata = jsonData.metadata;
+                const requiredMetadataFields = ['data_atualizacao', 'total_estrategias', 'total_ativos'];
+                for (const field of requiredMetadataFields) {
+                    if (!(field in metadata)) {
+                        return { valid: false, error: `Campo obrigatório ausente em metadata: ${field}` };
+                    }
+                }
 
+                // Verificar se data_atualizacao é válida
+                const dataAtualizacao = new Date(metadata.data_atualizacao);
+                if (isNaN(dataAtualizacao.getTime())) {
+                    return { valid: false, error: 'data_atualizacao inválida' };
+                }
 
+                // Verificar posições por ativo
+                const posicoes = jsonData.posicoes_por_ativo;
+                if (Object.keys(posicoes).length === 0) {
+                    return { valid: false, error: 'Nenhuma posição encontrada' };
+                }
 
+                // Validar estrutura de cada ativo
+                for (const [ativo, dadosAtivo] of Object.entries(posicoes)) {
+                    if (!dadosAtivo.preco_spot_atual || !dadosAtivo.estrategias) {
+                        return { valid: false, error: `Dados inválidos para ativo ${ativo}` };
+                    }
 
+                    // Validar cada estratégia
+                    for (const estrategia of dadosAtivo.estrategias) {
+                        const requiredFields = [
+                            'nome_estrategia', 'vencimento', 'dias_ate_vencimento',
+                            'data_abertura', 'investimento_entrada', 'valor_atual',
+                            'rentabilidade_absoluta', 'rentabilidade_percentual', 'opcoes'
+                        ];
 
+                        for (const field of requiredFields) {
+                            if (!(field in estrategia)) {
+                                return { valid: false, error: `Campo ${field} ausente na estratégia de ${ativo}` };
+                            }
+                        }
 
+                        // Validar opções
+                        if (!Array.isArray(estrategia.opcoes) || estrategia.opcoes.length === 0) {
+                            return { valid: false, error: `Opções inválidas para estratégia de ${ativo}` };
+                        }
 
+                        for (const opcao of estrategia.opcoes) {
+                            const requiredOpcaoFields = [
+                                'ticker_opcao', 'strike', 'vencimento', 'lado',
+                                'quantidade', 'preco_entrada', 'preco_atual'
+                            ];
 
+                            for (const field of requiredOpcaoFields) {
+                                if (!(field in opcao)) {
+                                    return { valid: false, error: `Campo ${field} ausente em opção de ${ativo}` };
+                                }
+                            }
+                        }
+                    }
+                }
 
+                return { valid: true };
+            } catch (error) {
+                return { valid: false, error: `Erro na validação: ${error.message}` };
+            }
+        }
+
+        // Função para extrair estatísticas do JSON da Monalisa Opções
+        function extractMonalisaOpcoesStats(jsonData) {
+            try {
+                const metadata = jsonData.metadata;
+                const posicoes = jsonData.posicoes_por_ativo;
+                
+                const stats = {
+                    dataAtualizacao: new Date(metadata.data_atualizacao),
+                    totalEstrategias: metadata.total_estrategias,
+                    totalAtivos: metadata.total_ativos,
+                    totalOpcoes: metadata.total_opcoes_disponiveis || 0,
+                    ativos: [],
+                    estrategias: [],
+                    resumoRentabilidade: {
+                        totalInvestido: 0,
+                        valorAtual: 0,
+                        lucroTotal: 0
+                    }
+                };
+
+                // Processar cada ativo
+                for (const [nomeAtivo, dadosAtivo] of Object.entries(posicoes)) {
+                    const ativoInfo = {
+                        nome: nomeAtivo,
+                        precoSpot: dadosAtivo.preco_spot_atual,
+                        estrategias: dadosAtivo.estrategias.length,
+                        totalInvestido: 0,
+                        valorAtual: 0
+                    };
+
+                    // Processar estratégias do ativo
+                    for (const estrategia of dadosAtivo.estrategias) {
+                        const estrategiaInfo = {
+                            ativo: nomeAtivo,
+                            nome: estrategia.nome_estrategia,
+                            vencimento: estrategia.vencimento,
+                            diasVencimento: estrategia.dias_ate_vencimento,
+                            investimento: estrategia.investimento_entrada,
+                            valorAtual: estrategia.valor_atual,
+                            rentabilidade: estrategia.rentabilidade_percentual,
+                            status: estrategia.status || 'N/A',
+                            opcoes: estrategia.opcoes.length
+                        };
+
+                        stats.estrategias.push(estrategiaInfo);
+                        
+                        ativoInfo.totalInvestido += estrategia.investimento_entrada;
+                        ativoInfo.valorAtual += estrategia.valor_atual;
+                        
+                        stats.resumoRentabilidade.totalInvestido += estrategia.investimento_entrada;
+                        stats.resumoRentabilidade.valorAtual += estrategia.valor_atual;
+                    }
+
+                    stats.ativos.push(ativoInfo);
+                }
+
+                stats.resumoRentabilidade.lucroTotal = 
+                    stats.resumoRentabilidade.valorAtual - stats.resumoRentabilidade.totalInvestido;
+
+                return stats;
+            } catch (error) {
+                console.error('Erro ao extrair estatísticas:', error);
+                return null;
+            }
+        }
+
+        // Manipular seleção de estratégia JSON
+        document.addEventListener('DOMContentLoaded', function() {
+            const strategyOptions = document.querySelectorAll('.json-strategy-option');
+            const radioInputs = document.querySelectorAll('input[name="jsonStrategy"]');
+            
+            strategyOptions.forEach((option, index) => {
+                option.addEventListener('click', function() {
+                    strategyOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    radioInputs[index].checked = true;
+                });
+            });
+            
+            radioInputs.forEach((radio, index) => {
+                radio.addEventListener('change', function() {
+                    strategyOptions.forEach(opt => opt.classList.remove('selected'));
+                    if (this.checked) {
+                        strategyOptions[index].classList.add('selected');
+                    }
+                });
+            });
+        });
+
+        // Manipular arquivo JSON (ATUALIZADO com validação específica para Monalisa Opções)
+        document.getElementById('jsonFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const label = document.getElementById('jsonFileLabel');
+            const text = label.querySelector('.json-file-upload-text');
+            
+            if (file) {
+                const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+                const MAX_SIZE = 5 * 1024 * 1024;
+                
+                if (file.size > MAX_SIZE) {
+                    alert(`Arquivo muito grande! Máximo: 5MB\nSeu arquivo: ${sizeMB}MB`);
+                    this.value = '';
+                    label.classList.remove('json-file-selected');
+                    text.innerHTML = '📄 Clique ou arraste o JSON aqui<small>Aceita apenas arquivos JSON até 5MB</small>';
+                    return;
+                }
+                
+                // Validar se é JSON válido e se tem estrutura correta para Monalisa Opções
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const jsonData = JSON.parse(event.target.result);
+                        
+                        // Verificar se é estratégia de opções selecionada
+                        const selectedStrategy = document.querySelector('input[name="jsonStrategy"]:checked');
+                        if (selectedStrategy && selectedStrategy.value === 'opcoes') {
+                            // Validar estrutura específica da Monalisa Opções
+                            const validation = validateMonalisaOpcoesJSON(jsonData);
+                            if (!validation.valid) {
+                                alert(`Arquivo JSON inválido para Monalisa Opções!\n\nErro: ${validation.error}\n\nVerifique se o arquivo possui a estrutura correta com metadata e posicoes_por_ativo.`);
+                                document.getElementById('jsonFile').value = '';
+                                label.classList.remove('json-file-selected');
+                                text.innerHTML = '📄 Clique ou arraste o JSON aqui<small>Aceita apenas arquivos JSON até 5MB</small>';
+                                return;
+                            }
+                            
+                            // Extrair estatísticas para mostrar ao usuário
+                            const stats = extractMonalisaOpcoesStats(jsonData);
+                            if (stats) {
+                                label.classList.add('json-file-selected');
+                                text.innerHTML = `✅ ${file.name}<small>${sizeMB} MB - ${stats.totalAtivos} ativos, ${stats.totalEstrategias} estratégias</small>`;
+                            } else {
+                                label.classList.add('json-file-selected');
+                                text.innerHTML = `✅ ${file.name}<small>${sizeMB} MB - JSON válido</small>`;
+                            }
+                        } else {
+                            // Para outras estratégias, validação simples
+                            label.classList.add('json-file-selected');
+                            text.innerHTML = `✅ ${file.name}<small>${sizeMB} MB - JSON válido</small>`;
+                        }
+                        
+                    } catch (error) {
+                        alert(`Arquivo JSON inválido!\n\nErro: ${error.message}`);
+                        document.getElementById('jsonFile').value = '';
+                        label.classList.remove('json-file-selected');
+                        text.innerHTML = '📄 Clique ou arraste o JSON aqui<small>Aceita apenas arquivos JSON até 5MB</small>';
+                    }
+                };
+                reader.readAsText(file);
+            } else {
+                label.classList.remove('json-file-selected');
+                text.innerHTML = '📄 Clique ou arraste o JSON aqui<small>Aceita apenas arquivos JSON até 5MB</small>';
+            }
+        });
+
+        // Upload de JSON para Supabase Storage
+        async function uploadJSON(file, strategy) {
+            const fileName = `positions_${strategy}_${Date.now()}.json`;
+            
+            const { data, error } = await supabase.storage
+                .from('json-positions')
+                .upload(fileName, file, {
+                    cacheControl: '3600',
+                    upsert: true
+                });
+            
+            if (error) {
+                console.error('Erro no upload JSON:', error);
+                throw error;
+            }
+            
+            const { data: urlData } = supabase.storage
+                .from('json-positions')
+                .getPublicUrl(fileName);
+            
+            return urlData.publicUrl;
+        }
+
+        // Salvar dados JSON no Supabase (ATUALIZADO com metadados específicos)
+        async function saveJSONPositions(strategy, file) {
+            try {
+                const fileUrl = await uploadJSON(file, strategy);
+                
+                // Se for estratégia de opções, extrair metadados específicos
+                let metadata = {};
+                if (strategy === 'opcoes') {
+                    const reader = new FileReader();
+                    const fileContent = await new Promise((resolve, reject) => {
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.onerror = reject;
+                        reader.readAsText(file);
+                    });
+                    
+                    try {
+                        const jsonData = JSON.parse(fileContent);
+                        const stats = extractMonalisaOpcoesStats(jsonData);
+                        if (stats) {
+                            metadata = {
+                                data_atualizacao: stats.dataAtualizacao.toISOString(),
+                                total_estrategias: stats.totalEstrategias,
+                                total_ativos: stats.totalAtivos,
+                                total_opcoes: stats.totalOpcoes,
+                                total_investido: stats.resumoRentabilidade.totalInvestido,
+                                valor_atual: stats.resumoRentabilidade.valorAtual,
+                                lucro_total: stats.resumoRentabilidade.lucroTotal
+                            };
+                        }
+                    } catch (error) {
+                        console.warn('Erro ao extrair metadados específicos:', error);
+                    }
+                }
+                
+                const jsonData = {
+                    strategy: strategy,
+                    file_url: fileUrl,
+                    file_name: file.name,
+                    file_size: file.size,
+                    metadata: metadata,
+                    updated_at: new Date().toISOString()
+                };
+                
+                // Deletar existente da mesma estratégia
+                await supabase
+                    .from('json_positions')
+                    .delete()
+                    .eq('strategy', strategy);
+                
+                // Inserir novo
+                const { data, error } = await supabase
+                    .from('json_positions')
+                    .insert(jsonData);
+                
+                if (error) throw error;
+                
+                return true;
+                
+            } catch (error) {
+                console.error('Erro ao salvar JSON:', error);
+                throw error;
+            }
+        }
+
+        // Listar arquivos JSON (ATUALIZADO com metadados específicos)
+        async function loadJSONFilesList() {
+            try {
+                const { data: jsonFiles, error } = await supabase
+                    .from('json_positions')
+                    .select('*')
+                    .order('updated_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                const container = document.getElementById('jsonFilesList');
+                
+                const strategyNames = {
+                    'quant': 'Monalisa Quant',
+                    'opcoes': 'Monalisa Opções',
+                    'longshort': 'Monalisa Long & Short'
+                };
+                
+                if (!jsonFiles || jsonFiles.length === 0) {
+                    container.innerHTML = '<p style="color: #888;">Nenhum arquivo JSON carregado</p>';
+                    return;
+                }
+                
+                container
