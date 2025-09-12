@@ -1285,15 +1285,19 @@
             }
         }
 
-        // Listar arquivos JSON - FUNÇÃO CORRIGIDA (sem metadata)
+        // Listar arquivos JSON - VERSÃO FINAL SEM METADATA
         async function loadJSONFilesList() {
             try {
+                // Buscar apenas os campos que existem na tabela
                 const { data: jsonFiles, error } = await supabase
                     .from('json_positions')
-                    .select('*')
+                    .select('id, strategy, file_url, file_name, file_size, updated_at')
                     .order('updated_at', { ascending: false });
                 
-                if (error) throw error;
+                if (error) {
+                    console.error('Erro ao buscar lista:', error);
+                    throw error;
+                }
                 
                 const container = document.getElementById('jsonFilesList');
                 
@@ -1308,27 +1312,24 @@
                     return;
                 }
                 
+                // Renderizar lista sem referências a metadata
                 container.innerHTML = jsonFiles.map(file => {
-                    // Informações simplificadas sem depender de metadata
-                    let extraInfo = '';
-                    if (file.strategy === 'opcoes') {
-                        extraInfo = `<div style="font-size: 0.8rem; color: #666; margin-top: 3px;">
-                            Arquivo de posições de opções
-                        </div>`;
-                    }
+                    const strategyName = strategyNames[file.strategy] || file.strategy;
+                    const fileSize = file.file_size ? `(${(file.file_size / 1024).toFixed(1)} KB)` : '';
                     
                     return `
                         <div class="json-file-item">
                             <div class="json-file-info">
                                 <div class="json-file-strategy">
-                                    ${strategyNames[file.strategy] || file.strategy}
-                                    ${file.file_size ? ` (${(file.file_size / 1024).toFixed(1)} KB)` : ''}
+                                    ${strategyName} ${fileSize}
                                 </div>
                                 <div class="json-file-date">
                                     📅 ${new Date(file.updated_at).toLocaleDateString('pt-BR')} às 
                                     ${new Date(file.updated_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}
                                 </div>
-                                ${extraInfo}
+                                <div style="font-size: 0.8rem; color: #666; margin-top: 3px;">
+                                    ${file.file_name}
+                                </div>
                             </div>
                             <div class="json-file-actions">
                                 <button class="btn-generate" onclick="viewJSONFile('${file.file_url}')">
@@ -1342,8 +1343,12 @@
                     `;
                 }).join('');
                 
+                console.log('Lista de arquivos JSON carregada:', jsonFiles.length, 'arquivos');
+                
             } catch (error) {
                 console.error('Erro ao carregar lista JSON:', error);
+                const container = document.getElementById('jsonFilesList');
+                container.innerHTML = '<p style="color: #e74c3c;">Erro ao carregar arquivos. Verifique o console.</p>';
             }
         }
 
