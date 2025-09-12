@@ -786,7 +786,7 @@
         <!-- SeÇão Upload JSON PosiÇões -->
         <div class="json-upload-section">
             <h2>📊 Upload de Posições JSON</h2>
-            <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 25px;">
+            <p style="color: #666; margin-bottom: 25px;">
                 Upload dos dados de posições das estratégias quantitativas para exibição na página inicial.
             </p>
             
@@ -1226,7 +1226,7 @@
             }
         }
         
-        // Listar relatórios do Supabase
+        // Listar relatórios do Supabase - FUNÇÃO CORRIGIDA
         async function loadReportsList() {
             try {
                 const { data: reports, error } = await supabase
@@ -1251,7 +1251,64 @@
                 };
                 
                 if (!reports || reports.length === 0) {
-                    container.innerHTML = jsonFiles.map(file => {
+                    container.innerHTML = '<p style="color: #888;">Nenhum relatório publicado</p>';
+                    return;
+                }
+                
+                container.innerHTML = reports.map(report => `
+                    <div class="report-item">
+                        <div class="report-info">
+                            <div class="report-type">
+                                ${typeNames[report.type] || report.type}
+                                ${report.file_size ? `(${(report.file_size / 1024 / 1024).toFixed(1)} MB)` : ''}
+                                <span class="access-badge badge-${report.access_level || 'public'}">
+                                    ${report.access_level === 'private' ? '🔒 Privado' : '🌍 Público'}
+                                </span>
+                            </div>
+                            <div class="report-date">
+                                📅 ${new Date(report.updated_at).toLocaleDateString('pt-BR')}
+                            </div>
+                        </div>
+                        <div class="report-actions">
+                            <button class="btn-generate" onclick="toggleAccess('${report.id}', '${report.access_level}')">
+                                ${report.access_level === 'private' ? 'Tornar Público' : 'Tornar Privado'}
+                            </button>
+                            <button class="btn-delete" onclick="removeReport('${report.id}', '${report.file_url}')">
+                                🗑️ Excluir
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Erro ao carregar lista:', error);
+            }
+        }
+
+        // Listar arquivos JSON - FUNÇÃO CORRIGIDA
+        async function loadJSONFilesList() {
+            try {
+                const { data: jsonFiles, error } = await supabase
+                    .from('json_positions')
+                    .select('*')
+                    .order('updated_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                const container = document.getElementById('jsonFilesList');
+                
+                const strategyNames = {
+                    'quant': 'Monalisa Quant',
+                    'opcoes': 'Monalisa Opções',
+                    'longshort': 'Monalisa Long & Short'
+                };
+                
+                if (!jsonFiles || jsonFiles.length === 0) {
+                    container.innerHTML = '<p style="color: #888;">Nenhum arquivo JSON carregado</p>';
+                    return;
+                }
+                
+                container.innerHTML = jsonFiles.map(file => {
                     let metadataInfo = '';
                     if (file.strategy === 'opcoes' && file.metadata) {
                         const meta = file.metadata;
@@ -1596,118 +1653,6 @@
 		    submitBtn.disabled = false;
 		    submitBtn.textContent = 'Publicar Relatório';
 		});
-		
-		// Verificar autenticação ao carregar
-		window.addEventListener('load', async () => {
-		    if (checkAuth()) {
-		        document.getElementById('loginContainer').style.display = 'none';
-		        document.getElementById('uploadContainer').style.display = 'block';
-		        
-		        try {
-		            // Inicializar Google Sheets Service
-					// Verificar disponibilidade da API Key com múltiplas verificações
-					let apiKey = null;
-					
-					// Tentar acessar de diferentes formas
-					if (typeof GOOGLE_SHEETS_API_KEY !== 'undefined') {
-					    apiKey = GOOGLE_SHEETS_API_KEY;
-					    console.log('✅ API Key encontrada diretamente:', apiKey.substring(0, 20) + '...');
-					} else if (typeof window.GOOGLE_SHEETS_API_KEY !== 'undefined') {
-					    apiKey = window.GOOGLE_SHEETS_API_KEY;
-					    console.log('✅ API Key encontrada em window:', apiKey.substring(0, 20) + '...');
-					} else {
-					    // Fallback: tentar acessar diretamente a string (caso o config.js não tenha carregado)
-					    apiKey = 'AIzaSyDfXfFTzgEIP5CvBi-xaRiVty_GkvI7Tq8';
-					    console.warn('⚠️ Usando API Key de fallback');
-					}
-					
-					if (apiKey) {
-					    sheetsService.initialize(apiKey);
-					    console.log('✅ Google Sheets Service inicializado com sucesso');
-					} else {
-					    console.error('❌ GOOGLE_SHEETS_API_KEY não encontrada em nenhum local');
-					    alert('Erro crítico: Google Sheets API não disponível.\nNotificações por email não funcionarão.');
-					}				
-		            
-		            // Carregar dados existentes
-		            await loadReportsList();
-		            loadAccessCode();
-		            await loadJSONFilesList();
-		            
-		            // Inicializar EmailService para Brevo
-		            try {
-		                if (typeof BrevoEmailService !== 'undefined') {
-		                    window.emailService = new BrevoEmailService();
-		                    
-		                    // Testar configuração Brevo
-		                    const testResult = await window.emailService.testConfiguration();
-		                    if (testResult.success) {
-		                        console.log('EmailService Brevo inicializado no admin com sucesso');
-		                        console.log('Endpoints disponíveis:', testResult.endpoints);
-		                    } else {
-		                        console.warn('Problema na configuração Brevo:', testResult.message);
-		                        console.warn('Detalhes:', testResult.endpoints);
-		                    }
-		                } else {
-		                    console.warn('BrevoEmailService não encontrado. Verifique se email-service.js foi carregado');
-		                }
-		            } catch (error) {
-		                console.error('Erro ao inicializar Brevo no admin:', error);
-		                // Não interrompe a aplicação se o email falhar
-		                window.emailService = null;
-		            }
-		            
-		            console.log('Sistema inicializado com Supabase e Brevo');
-		            console.log('Serviços disponíveis:', {
-		                supabase: !!supabase,
-		                sheetsService: !!sheetsService,
-		                emailService: !!window.emailService
-		            });
-		            
-		        } catch (error) {
-		            console.error('Erro na inicialização geral:', error);
-		            // Ainda permite uso do admin mesmo com erro parcial
-		            alert('Sistema carregado com funcionalidade limitada. Verifique o console para detalhes.');
-		        }
-		    }
-		});
-
-    </script>
-</body>
-
-</html>.innerHTML = '<p style="color: #888;">Nenhum relatório publicado</p>';
-                    return;
-                }
-                
-                container.innerHTML = reports.map(report => `
-                    <div class="report-item">
-                        <div class="report-info">
-                            <div class="report-type">
-                                ${typeNames[report.type] || report.type}
-                                ${report.file_size ? `(${(report.file_size / 1024 / 1024).toFixed(1)} MB)` : ''}
-                                <span class="access-badge badge-${report.access_level || 'public'}">
-                                    ${report.access_level === 'private' ? '🔒 Privado' : '🌍 Público'}
-                                </span>
-                            </div>
-                            <div class="report-date">
-                                📅 ${new Date(report.updated_at).toLocaleDateString('pt-BR')}
-                            </div>
-                        </div>
-                        <div class="report-actions">
-                            <button class="btn-generate" onclick="toggleAccess('${report.id}', '${report.access_level}')">
-                                ${report.access_level === 'private' ? 'Tornar Público' : 'Tornar Privado'}
-                            </button>
-                            <button class="btn-delete" onclick="removeReport('${report.id}', '${report.file_url}')">
-                                🗑️ Excluir
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
-                
-            } catch (error) {
-                console.error('Erro ao carregar lista:', error);
-            }
-        }
 
         // Função para validar estrutura do JSON da Monalisa Opções
         function validateMonalisaOpcoesJSON(jsonData) {
@@ -2025,28 +1970,82 @@
                 throw error;
             }
         }
+		
+		// Verificar autenticação ao carregar
+		window.addEventListener('load', async () => {
+		    if (checkAuth()) {
+		        document.getElementById('loginContainer').style.display = 'none';
+		        document.getElementById('uploadContainer').style.display = 'block';
+		        
+		        try {
+		            // Inicializar Google Sheets Service
+					// Verificar disponibilidade da API Key com múltiplas verificações
+					let apiKey = null;
+					
+					// Tentar acessar de diferentes formas
+					if (typeof GOOGLE_SHEETS_API_KEY !== 'undefined') {
+					    apiKey = GOOGLE_SHEETS_API_KEY;
+					    console.log('✅ API Key encontrada diretamente:', apiKey.substring(0, 20) + '...');
+					} else if (typeof window.GOOGLE_SHEETS_API_KEY !== 'undefined') {
+					    apiKey = window.GOOGLE_SHEETS_API_KEY;
+					    console.log('✅ API Key encontrada em window:', apiKey.substring(0, 20) + '...');
+					} else {
+					    // Fallback: tentar acessar diretamente a string (caso o config.js não tenha carregado)
+					    apiKey = 'AIzaSyDfXfFTzgEIP5CvBi-xaRiVty_GkvI7Tq8';
+					    console.warn('⚠️ Usando API Key de fallback');
+					}
+					
+					if (apiKey) {
+					    sheetsService.initialize(apiKey);
+					    console.log('✅ Google Sheets Service inicializado com sucesso');
+					} else {
+					    console.error('❌ GOOGLE_SHEETS_API_KEY não encontrada em nenhum local');
+					    alert('Erro crítico: Google Sheets API não disponível.\nNotificações por email não funcionarão.');
+					}				
+		            
+		            // Carregar dados existentes
+		            await loadReportsList();
+		            loadAccessCode();
+		            await loadJSONFilesList();
+		            
+		            // Inicializar EmailService para Brevo
+		            try {
+		                if (typeof BrevoEmailService !== 'undefined') {
+		                    window.emailService = new BrevoEmailService();
+		                    
+		                    // Testar configuração Brevo
+		                    const testResult = await window.emailService.testConfiguration();
+		                    if (testResult.success) {
+		                        console.log('EmailService Brevo inicializado no admin com sucesso');
+		                        console.log('Endpoints disponíveis:', testResult.endpoints);
+		                    } else {
+		                        console.warn('Problema na configuração Brevo:', testResult.message);
+		                        console.warn('Detalhes:', testResult.endpoints);
+		                    }
+		                } else {
+		                    console.warn('BrevoEmailService não encontrado. Verifique se email-service.js foi carregado');
+		                }
+		            } catch (error) {
+		                console.error('Erro ao inicializar Brevo no admin:', error);
+		                // Não interrompe a aplicação se o email falhar
+		                window.emailService = null;
+		            }
+		            
+		            console.log('Sistema inicializado com Supabase e Brevo');
+		            console.log('Serviços disponíveis:', {
+		                supabase: !!supabase,
+		                sheetsService: !!sheetsService,
+		                emailService: !!window.emailService
+		            });
+		            
+		        } catch (error) {
+		            console.error('Erro na inicialização geral:', error);
+		            // Ainda permite uso do admin mesmo com erro parcial
+		            alert('Sistema carregado com funcionalidade limitada. Verifique o console para detalhes.');
+		        }
+		    }
+		});
 
-        // Listar arquivos JSON (ATUALIZADO com metadados específicos)
-        async function loadJSONFilesList() {
-            try {
-                const { data: jsonFiles, error } = await supabase
-                    .from('json_positions')
-                    .select('*')
-                    .order('updated_at', { ascending: false });
-                
-                if (error) throw error;
-                
-                const container = document.getElementById('jsonFilesList');
-                
-                const strategyNames = {
-                    'quant': 'Monalisa Quant',
-                    'opcoes': 'Monalisa Opções',
-                    'longshort': 'Monalisa Long & Short'
-                };
-                
-                if (!jsonFiles || jsonFiles.length === 0) {
-                    container.innerHTML = '<p style="color: #888;">Nenhum arquivo JSON carregado</p>';
-                    return;
-                }
-                
-                container
+    </script>
+</body>
+</html>
