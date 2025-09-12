@@ -1285,7 +1285,7 @@
             }
         }
 
-        // Listar arquivos JSON - FUNÇÃO CORRIGIDA
+        // Listar arquivos JSON - FUNÇÃO CORRIGIDA (sem metadata)
         async function loadJSONFilesList() {
             try {
                 const { data: jsonFiles, error } = await supabase
@@ -1309,12 +1309,11 @@
                 }
                 
                 container.innerHTML = jsonFiles.map(file => {
-                    let metadataInfo = '';
-                    if (file.strategy === 'opcoes' && file.metadata) {
-                        const meta = file.metadata;
-                        metadataInfo = `<div style="font-size: 0.8rem; color: #666; margin-top: 3px;">
-                            ${meta.total_ativos || 0} ativos • ${meta.total_estrategias || 0} estratégias
-                            ${meta.total_investido ? ` • R$ ${meta.total_investido.toFixed(2)} investido` : ''}
+                    // Informações simplificadas sem depender de metadata
+                    let extraInfo = '';
+                    if (file.strategy === 'opcoes') {
+                        extraInfo = `<div style="font-size: 0.8rem; color: #666; margin-top: 3px;">
+                            Arquivo de posições de opções
                         </div>`;
                     }
                     
@@ -1323,13 +1322,13 @@
                             <div class="json-file-info">
                                 <div class="json-file-strategy">
                                     ${strategyNames[file.strategy] || file.strategy}
-                                    ${file.file_size ? `(${(file.file_size / 1024).toFixed(1)} KB)` : ''}
+                                    ${file.file_size ? ` (${(file.file_size / 1024).toFixed(1)} KB)` : ''}
                                 </div>
                                 <div class="json-file-date">
                                     📅 ${new Date(file.updated_at).toLocaleDateString('pt-BR')} às 
                                     ${new Date(file.updated_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}
                                 </div>
-                                ${metadataInfo}
+                                ${extraInfo}
                             </div>
                             <div class="json-file-actions">
                                 <button class="btn-generate" onclick="viewJSONFile('${file.file_url}')">
