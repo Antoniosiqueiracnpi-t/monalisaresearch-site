@@ -1912,68 +1912,38 @@
         }
 
         // Salvar dados JSON no Supabase (ATUALIZADO com metadados específicos)
-        async function saveJSONPositions(strategy, file) {
-            try {
-                const fileUrl = await uploadJSON(file, strategy);
-                
-                // Se for estratégia de opções, extrair metadados específicos
-                let metadata = {};
-                if (strategy === 'opcoes') {
-                    const reader = new FileReader();
-                    const fileContent = await new Promise((resolve, reject) => {
-                        reader.onload = (e) => resolve(e.target.result);
-                        reader.onerror = reject;
-                        reader.readAsText(file);
-                    });
-                    
-                    try {
-                        const jsonData = JSON.parse(fileContent);
-                        const stats = extractMonalisaOpcoesStats(jsonData);
-                        if (stats) {
-                            metadata = {
-                                data_atualizacao: stats.dataAtualizacao.toISOString(),
-                                total_estrategias: stats.totalEstrategias,
-                                total_ativos: stats.totalAtivos,
-                                total_opcoes: stats.totalOpcoes,
-                                total_investido: stats.resumoRentabilidade.totalInvestido,
-                                valor_atual: stats.resumoRentabilidade.valorAtual,
-                                lucro_total: stats.resumoRentabilidade.lucroTotal
-                            };
-                        }
-                    } catch (error) {
-                        console.warn('Erro ao extrair metadados específicos:', error);
-                    }
-                }
-                
-                const jsonData = {
-                    strategy: strategy,
-                    file_url: fileUrl,
-                    file_name: file.name,
-                    file_size: file.size,
-                    metadata: metadata,
-                    updated_at: new Date().toISOString()
-                };
-                
-                // Deletar existente da mesma estratégia
-                await supabase
-                    .from('json_positions')
-                    .delete()
-                    .eq('strategy', strategy);
-                
-                // Inserir novo
-                const { data, error } = await supabase
-                    .from('json_positions')
-                    .insert(jsonData);
-                
-                if (error) throw error;
-                
-                return true;
-                
-            } catch (error) {
-                console.error('Erro ao salvar JSON:', error);
-                throw error;
-            }
-        }
+		async function saveJSONPositions(strategy, file) {
+		    try {
+		        const fileUrl = await uploadJSON(file, strategy);
+		        
+		        const jsonData = {
+		            strategy: strategy,
+		            file_url: fileUrl,
+		            file_name: file.name,
+		            file_size: file.size,
+		            updated_at: new Date().toISOString()
+		        };
+		        
+		        // Deletar existente da mesma estratégia
+		        await supabase
+		            .from('json_positions')
+		            .delete()
+		            .eq('strategy', strategy);
+		        
+		        // Inserir novo
+		        const { data, error } = await supabase
+		            .from('json_positions')
+		            .insert(jsonData);
+		        
+		        if (error) throw error;
+		        
+		        return true;
+		        
+		    } catch (error) {
+		        console.error('Erro ao salvar JSON:', error);
+		        throw error;
+		    }
+		}
 		
 		// Verificar autenticação ao carregar
 		window.addEventListener('load', async () => {
@@ -2053,3 +2023,4 @@
     </script>
 </body>
 </html>
+
