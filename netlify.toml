@@ -1,4 +1,5 @@
 [build]
+  publish = "/"
   functions = "netlify/functions"
 
 [functions]
@@ -12,7 +13,6 @@
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
 
-# Configurações adicionais opcionais
 [[headers]]
   for = "/*"
   [headers.values]
